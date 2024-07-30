@@ -18,7 +18,7 @@
   background-color: rgb(18, 22, 26);
 }
 ::-webkit-scrollbar-thumb {
-  height: 25%;
+  height: 5%;
   width: 5px;
   background-color: rgb(32, 40, 48);
   background-color: var(--text-color);

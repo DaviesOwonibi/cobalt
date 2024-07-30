@@ -1,96 +1,96 @@
 /* eslint-disable react/no-unknown-property */
-import React, { useEffect, useRef, useState } from 'react';
-import close from './assets/icons/close-w-10.png';
-import restore from './assets/icons/icons8-restore-down-48.png';
-import maximize from './assets/icons/max-w-10.png';
-import minimize from './assets/icons/min-w-10.png';
-import cobalt from './assets/icons/icon.png';
-import { clipboard } from 'electron';
+import React, { useEffect, useRef, useState } from 'react'
+import close from './assets/icons/close-w-10.png'
+import restore from './assets/icons/icons8-restore-down-48.png'
+import maximize from './assets/icons/max-w-10.png'
+import minimize from './assets/icons/min-w-10.png'
+import cobalt from './assets/icons/icon.png'
+import { clipboard } from 'electron'
 
 interface Tab {
-  name: string;
-  url: string;
-  id: number;
-  key: string;
+  name: string
+  url: string
+  id: number
+  key: string
 }
 
 function App(): JSX.Element {
-  const [idCounter, setIdCounter] = useState(1);
-  const [tabs, setTabs] = useState<Tab[]>([{ name: 'New Tab', url: '', id: 0, key: `tab-0` }]);
-  const [activeTab, setActiveTab] = useState<number>(0);
-  const [searchInput, setSearchInput] = useState('');
-  const [homeSearchInput, setHomeSearchInput] = useState('');
-  const webviewRefs = useRef<{ [key: number]: Electron.WebviewTag }>({});
-  const [canGoBack, setCanGoBack] = useState(false);
-  const [canGoForward, setCanGoForward] = useState(false);
+  const [idCounter, setIdCounter] = useState(1)
+  const [tabs, setTabs] = useState<Tab[]>([{ name: 'New Tab', url: '', id: 0, key: `tab-0` }])
+  const [activeTab, setActiveTab] = useState<number>(0)
+  const [searchInput, setSearchInput] = useState('')
+  const [homeSearchInput, setHomeSearchInput] = useState('')
+  const webviewRefs = useRef<{ [key: number]: Electron.WebviewTag }>({})
+  const [canGoBack, setCanGoBack] = useState(false)
+  const [canGoForward, setCanGoForward] = useState(false)
   const [history, setHistory] = useState<{
-    sites: string[];
-    timestamps: number[];
-    titles: string[];
+    sites: string[]
+    timestamps: number[]
+    titles: string[]
   }>({
     sites: [],
     timestamps: [],
     titles: []
-  });
-  const [titles, setTitles] = useState({});
-  const [lastTab, setLastTab] = useState<Tab>();
-  const activeTabIndex = tabs.findIndex((tab) => tab.id === activeTab);
-  const ipcRenderer = window.electron.ipcRenderer;
-  const [isContextMenuVisible, setContextMenuVisibility] = useState(false);
-  const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
+  })
+  const [titles, setTitles] = useState({})
+  const [lastTab, setLastTab] = useState<Tab>()
+  const activeTabIndex = tabs.findIndex((tab) => tab.id === activeTab)
+  const ipcRenderer = window.electron.ipcRenderer
+  const [isContextMenuVisible, setContextMenuVisibility] = useState(false)
+  const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 })
 
   const handleContextMenu = (event): void => {
-    event.preventDefault();
-    setContextMenuPosition({ x: event.pageX, y: event.pageY });
-    setContextMenuVisibility(true);
-  };
+    event.preventDefault()
+    setContextMenuPosition({ x: event.pageX, y: event.pageY })
+    setContextMenuVisibility(true)
+  }
 
   const handleClick = (): void => {
-    console.log('click');
-    setContextMenuVisibility(false);
-  };
+    console.log('click')
+    setContextMenuVisibility(false)
+  }
 
   const handleMenuItemClick = (action: number): void => {
     switch (action) {
       case 0:
-        handleGoBack();
-        break;
+        handleGoBack()
+        break
       case 1:
-        handleGoForward();
-        break;
+        handleGoForward()
+        break
       case 2:
-        handleReload();
-        break;
+        handleReload()
+        break
       default:
-        break;
+        break
     }
-    setContextMenuVisibility(false);
-  };
+    setContextMenuVisibility(false)
+  }
 
   // Tab management
   function addTab(): void {
-    const newTab = { name: 'New Tab', url: '', id: idCounter, key: `tab-${idCounter}` };
-    setTabs([...tabs, newTab]);
-    setIdCounter(idCounter + 1);
-    setActiveTab(newTab.id);
-    setSearchInput('');
+    const newTab = { name: 'New Tab', url: '', id: idCounter, key: `tab-${idCounter}` }
+    setTabs([...tabs, newTab])
+    setIdCounter(idCounter + 1)
+    setActiveTab(newTab.id)
+    setSearchInput('')
   }
 
   function openLinkInNewTab(url: string): void {
-    const newTab = { name: '', id: idCounter, url: url, key: `tab-${idCounter}` };
-    setTabs([...tabs, newTab]);
+    const newTab = { name: '', id: idCounter, url: url, key: `tab-${idCounter}` }
+    setTabs([...tabs, newTab])
 
     // After the tab is added and the webview is created
-    const webview = webviewRefs.current[newTab.id];
+    const webview = webviewRefs.current[newTab.id]
     if (webview) {
       webview.addEventListener('page-title-updated', (event) => {
         setTabs((prevTabs) =>
           prevTabs.map((tab) => (tab.id === newTab.id ? { ...tab, name: event.title } : tab))
-        );
-      });
+        )
+      })
     }
-    setIdCounter(idCounter + 1);
-    setActiveTab(newTab.id);
+    setIdCounter(idCounter + 1)
+    setActiveTab(newTab.id)
   }
 
   function addLastTab(): void {
@@ -100,22 +100,22 @@ function App(): JSX.Element {
         url: lastTab.url,
         id: idCounter,
         key: `tab-${idCounter}`
-      };
-      setTabs([...tabs, newTab]);
-      setIdCounter(idCounter + 1);
-      setActiveTab(newTab.id);
-      setSearchInput('');
+      }
+      setTabs([...tabs, newTab])
+      setIdCounter(idCounter + 1)
+      setActiveTab(newTab.id)
+      setSearchInput('')
     } else {
       const newTab = {
         name: 'Hi',
         url: 'cobalt://history',
         id: idCounter,
         key: `tab-${idCounter}`
-      };
-      setTabs([...tabs, newTab]);
-      setIdCounter(idCounter + 1);
-      setActiveTab(newTab.id);
-      setSearchInput('');
+      }
+      setTabs([...tabs, newTab])
+      setIdCounter(idCounter + 1)
+      setActiveTab(newTab.id)
+      setSearchInput('')
     }
   }
 
@@ -125,12 +125,12 @@ function App(): JSX.Element {
       url: url,
       id: idCounter,
       key: `tab-${idCounter}`
-    };
-    setTabs([...tabs, cobaltTab]);
-    setIdCounter(idCounter + 1);
-    setActiveTab(cobaltTab.id);
-    setSearchInput(url);
-    showSettings();
+    }
+    setTabs([...tabs, cobaltTab])
+    setIdCounter(idCounter + 1)
+    setActiveTab(cobaltTab.id)
+    setSearchInput(url)
+    showSettings()
   }
   function openCobaltPage(name: string, url: string): void {
     const cobaltTab = {
@@ -138,390 +138,390 @@ function App(): JSX.Element {
       url: url,
       id: idCounter,
       key: `tab-${idCounter}`
-    };
-    setTabs([...tabs, cobaltTab]);
-    setIdCounter(idCounter + 1);
-    setActiveTab(cobaltTab.id);
-    setSearchInput(url);
+    }
+    setTabs([...tabs, cobaltTab])
+    setIdCounter(idCounter + 1)
+    setActiveTab(cobaltTab.id)
+    setSearchInput(url)
   }
 
   function closeTab(id: number): void {
     setTabs((prevTabs) => {
-      const closingTab = tabs[getTabIndexFromId(id)];
-      setLastTab(closingTab);
-      const newTabs = prevTabs.filter((tab) => tab.id !== id);
+      const closingTab = tabs[getTabIndexFromId(id)]
+      setLastTab(closingTab)
+      const newTabs = prevTabs.filter((tab) => tab.id !== id)
 
       // Close the window if it's the last tab
       if (newTabs.length === 0) {
-        window.electron?.ipcRenderer.send('TITLE_BAR_ACTION', 'CLOSE_APP');
-        return prevTabs; // Return the previous state as we're closing the window
+        window.electron?.ipcRenderer.send('TITLE_BAR_ACTION', 'CLOSE_APP')
+        return prevTabs // Return the previous state as we're closing the window
       }
 
       // If the closed tab was the active one, set a new active tab
       if (activeTab === id) {
-        setSearchInput(newTabs[newTabs.length - 1].url);
-        setActiveTab(newTabs[newTabs.length - 1].id);
+        setSearchInput(newTabs[newTabs.length - 1].url)
+        setActiveTab(newTabs[newTabs.length - 1].id)
       } else {
-        setActiveTab(newTabs[getTabIndexFromId(id)].id);
+        setActiveTab(newTabs[getTabIndexFromId(id)].id)
       }
 
-      return newTabs;
-    });
+      return newTabs
+    })
   }
 
   function getTabIndexFromId(id: number): number {
-    return tabs.findIndex((tab) => tab.id === id);
+    return tabs.findIndex((tab) => tab.id === id)
   }
 
   function setActivePage(id: number): void {
     if (id !== null) {
       setTabs((prevTabs) => {
-        const tab = prevTabs.find((t) => t.id === id);
+        const tab = prevTabs.find((t) => t.id === id)
         if (tab) {
-          setSearchInput(tab.url);
-          setActiveTab(id);
+          setSearchInput(tab.url)
+          setActiveTab(id)
         }
-        return prevTabs;
-      });
+        return prevTabs
+      })
     }
   }
 
   // Settings
 
   const showSettings = (): void => {
-    const settingsMenu = document.getElementById('settings-menu');
+    const settingsMenu = document.getElementById('settings-menu')
     if (settingsMenu) {
-      settingsMenu.classList.toggle('show');
+      settingsMenu.classList.toggle('show')
     }
-  };
+  }
 
   function settingsMenuAddTab(): void {
-    const newTab = { name: 'New Tab', url: '', id: idCounter, key: `tab-${idCounter}` };
-    setTabs([...tabs, newTab]);
-    setIdCounter(idCounter + 1);
-    setActiveTab(newTab.id);
-    setSearchInput('');
-    showSettings();
+    const newTab = { name: 'New Tab', url: '', id: idCounter, key: `tab-${idCounter}` }
+    setTabs([...tabs, newTab])
+    setIdCounter(idCounter + 1)
+    setActiveTab(newTab.id)
+    setSearchInput('')
+    showSettings()
   }
 
   // History Page
 
   const fetchHistory = async (): Promise<void> => {
-    const result = await window.electron?.ipcRenderer.invoke('GET_HISTORY');
+    const result = await window.electron?.ipcRenderer.invoke('GET_HISTORY')
     if (result) {
-      setHistory(result);
+      setHistory(result)
     }
-  };
+  }
 
   function addToHistory(site: string, title: string): void {
     window.electron?.ipcRenderer.send('UPDATE_HISTORY', {
       site: site,
       timestamp: Date.now(),
       title: title
-    });
+    })
   }
 
   const clearHistory = async (): Promise<void> => {
     try {
-      await ipcRenderer.invoke('CLEAR_HISTORY');
+      await ipcRenderer.invoke('CLEAR_HISTORY')
 
       // Clear local state
       setHistory({
         sites: [],
         timestamps: [],
         titles: []
-      });
+      })
     } catch (error) {
-      console.error('Error clearing history:', error);
+      console.error('Error clearing history:', error)
     }
-  };
+  }
 
   // Webview Logic (Webview and Search)
 
   function webviewValid(tab: Tab): boolean {
-    const cobaltPattern = /^cobalt:\/\/[a-z]/;
-    return activeTab === tab.id && tab.url !== '' && !cobaltPattern.test(tab.url);
+    const cobaltPattern = /^cobalt:\/\/[a-z]/
+    return activeTab === tab.id && tab.url !== '' && !cobaltPattern.test(tab.url)
   }
 
   function handleSearchChange(event: React.ChangeEvent<HTMLInputElement>): void {
-    setSearchInput(event.target.value);
+    setSearchInput(event.target.value)
   }
 
   function handleHomeSearchChange(event: React.ChangeEvent<HTMLInputElement>): void {
-    setHomeSearchInput(event.target.value);
+    setHomeSearchInput(event.target.value)
   }
 
   async function handleSearchSubmit(event: React.FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
+    event.preventDefault()
     if (searchInput) {
-      const httpsPattern = /\b(?:https?:\/\/|www\.)[^\s/$.?#].[^\s]*\b/;
+      const httpsPattern = /\b(?:https?:\/\/|www\.)[^\s/$.?#].[^\s]*\b/
       const tldPattern =
-        /(https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z0-9]{2,}(\.[a-zA-Z0-9]{2,})(\.[a-zA-Z0-9]{2,})?/;
-      const localhostPattern = /^localhost:\d+$/;
-      const cobaltPattern = /^cobalt:\/\/[a-z]/;
-      const googleSearchPattern = /^(?!https?:\/\/|www\.).+\s?.*$/;
-      let newUrl: string = '';
+        /(https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z0-9]{2,}(\.[a-zA-Z0-9]{2,})(\.[a-zA-Z0-9]{2,})?/
+      const localhostPattern = /^localhost:\d+$/
+      const cobaltPattern = /^cobalt:\/\/[a-z]/
+      const googleSearchPattern = /^(?!https?:\/\/|www\.).+\s?.*$/
+      let newUrl: string = ''
       if (httpsPattern.test(searchInput)) {
-        newUrl = searchInput;
+        newUrl = searchInput
       } else if (tldPattern.test(searchInput)) {
-        newUrl = `https://${searchInput}`;
+        newUrl = `https://${searchInput}`
       } else if (localhostPattern.test(searchInput)) {
-        newUrl = `http://${searchInput}`;
+        newUrl = `http://${searchInput}`
       } else if (cobaltPattern.test(searchInput)) {
-        newUrl = searchInput;
-        const lowercaseName = newUrl.split('//')[1];
-        const firstLetter = lowercaseName.slice(0, 1);
-        const rest = lowercaseName.slice(1, lowercaseName.length);
-        const newName = firstLetter.toUpperCase() + rest;
+        newUrl = searchInput
+        const lowercaseName = newUrl.split('//')[1]
+        const firstLetter = lowercaseName.slice(0, 1)
+        const rest = lowercaseName.slice(1, lowercaseName.length)
+        const newName = firstLetter.toUpperCase() + rest
         const updatedTabs = tabs.map((tab) =>
           tab.id === activeTab ? { ...tab, url: newUrl, name: newName } : tab
-        );
-        setTabs(updatedTabs);
-        return;
+        )
+        setTabs(updatedTabs)
+        return
       } else if (googleSearchPattern.test(searchInput)) {
-        newUrl = `https://www.google.com/search?q=${encodeURIComponent(searchInput)}`;
+        newUrl = `https://www.google.com/search?q=${encodeURIComponent(searchInput)}`
       }
-      const updatedTabs = tabs.map((tab) => (tab.id === activeTab ? { ...tab, url: newUrl } : tab));
-      setTabs(updatedTabs);
-      const webview = webviewRefs.current[activeTab];
+      const updatedTabs = tabs.map((tab) => (tab.id === activeTab ? { ...tab, url: newUrl } : tab))
+      setTabs(updatedTabs)
+      const webview = webviewRefs.current[activeTab]
       if (webview) {
-        webview.loadURL(newUrl);
-        const title = await getTitle(newUrl);
-        addToHistory(newUrl, title);
+        webview.loadURL(newUrl)
+        const title = await getTitle(newUrl)
+        addToHistory(newUrl, title)
       }
     }
   }
 
   async function handleHomeSearchSubmit(event: React.FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
+    event.preventDefault()
     if (homeSearchInput) {
-      const newUrl: string = `https://www.google.com/search?q=${encodeURIComponent(homeSearchInput)}`;
-      const updatedTabs = tabs.map((tab) => (tab.id === activeTab ? { ...tab, url: newUrl } : tab));
-      setTabs(updatedTabs);
-      tabs[activeTabIndex].url = newUrl;
-      setSearchInput(tabs[activeTabIndex].url);
-      const title = await getTitle(newUrl);
-      addToHistory(newUrl, title);
+      const newUrl: string = `https://www.google.com/search?q=${encodeURIComponent(homeSearchInput)}`
+      const updatedTabs = tabs.map((tab) => (tab.id === activeTab ? { ...tab, url: newUrl } : tab))
+      setTabs(updatedTabs)
+      tabs[activeTabIndex].url = newUrl
+      setSearchInput(tabs[activeTabIndex].url)
+      const title = await getTitle(newUrl)
+      addToHistory(newUrl, title)
     }
   }
 
   const handleGoBack = (): void => {
-    const webview = webviewRefs.current[activeTab];
-    console.log(webview, webview.canGoBack());
+    const webview = webviewRefs.current[activeTab]
+    console.log(webview, webview.canGoBack())
     if (webview && canGoBack) {
-      webview.goBack();
+      webview.goBack()
     }
-  };
+  }
 
   const handleGoForward = (): void => {
-    const webview = webviewRefs.current[activeTab];
-    console.log(webview, webview.canGoForward());
+    const webview = webviewRefs.current[activeTab]
+    console.log(webview, webview.canGoForward())
     if (webview && canGoForward) {
-      webview.goForward();
+      webview.goForward()
     }
-  };
+  }
 
   const handleReload = (): void => {
-    const webview = webviewRefs.current[activeTab];
+    const webview = webviewRefs.current[activeTab]
     if (webview) {
-      webview.reload();
+      webview.reload()
     }
-  };
+  }
 
   const handleInspect = (): void => {
-    const webview = webviewRefs.current[activeTab];
+    const webview = webviewRefs.current[activeTab]
     if (webview) {
-      webview.openDevTools();
+      webview.openDevTools()
     }
-  };
+  }
 
   const handleDownload = (url: string): void => {
     ipcRenderer.send('download', {
       payload: {
         url: url
       }
-    });
-  };
+    })
+  }
 
   // Utility functions
 
   const getTitle = async (url: string): Promise<string> => {
     try {
-      const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
+      const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`)
       if (!response.ok) {
-        throw new Error('Network response was not ok.');
+        throw new Error('Network response was not ok.')
       }
 
-      const { contents: html } = await response.json();
-      const doc = new DOMParser().parseFromString(html, 'text/html');
-      const titleElement = doc.querySelector('title');
+      const { contents: html } = await response.json()
+      const doc = new DOMParser().parseFromString(html, 'text/html')
+      const titleElement = doc.querySelector('title')
 
-      return titleElement?.textContent || 'No title found';
+      return titleElement?.textContent || 'No title found'
     } catch (err) {
-      console.error('Error getting title:', err);
-      throw err;
+      console.error('Error getting title:', err)
+      throw err
     }
-  };
+  }
 
   function parseLocaleString(time: Date): string {
-    const suffixes = ['th', 'st', 'nd', 'rd'];
-    const dateStr = time.toDateString().split(' ');
-    const day = parseInt(dateStr[2]);
-    const suffix = suffixes[day % 10 > 3 || [11, 12, 13].includes(day % 100) ? 0 : day % 10];
-    const month = new Intl.DateTimeFormat('en-US', { month: 'long' }).format(time);
-    const formattedDay = `${day}${suffix}`;
+    const suffixes = ['th', 'st', 'nd', 'rd']
+    const dateStr = time.toDateString().split(' ')
+    const day = parseInt(dateStr[2])
+    const suffix = suffixes[day % 10 > 3 || [11, 12, 13].includes(day % 100) ? 0 : day % 10]
+    const month = new Intl.DateTimeFormat('en-US', { month: 'long' }).format(time)
+    const formattedDay = `${day}${suffix}`
 
-    const hours = time.getHours();
-    const minutes = time.getMinutes();
-    const ampm = hours >= 12 ? 'pm' : 'am';
-    const formattedHours = hours % 12 || 12;
-    const formattedMinutes = minutes < 10 ? '0' + minutes : minutes.toString();
-    const timeString = `${formattedHours}:${formattedMinutes} ${ampm}`;
+    const hours = time.getHours()
+    const minutes = time.getMinutes()
+    const ampm = hours >= 12 ? 'pm' : 'am'
+    const formattedHours = hours % 12 || 12
+    const formattedMinutes = minutes < 10 ? '0' + minutes : minutes.toString()
+    const timeString = `${formattedHours}:${formattedMinutes} ${ampm}`
 
-    return `${formattedDay} ${month} ${timeString}`;
+    return `${formattedDay} ${month} ${timeString}`
   }
 
   // UseEffects
 
   useEffect(() => {
-    const ipcRenderer = window.electron?.ipcRenderer;
+    const ipcRenderer = window.electron?.ipcRenderer
 
     const handleWindowControls = (): void => {
-      if (!ipcRenderer) return;
+      if (!ipcRenderer) return
 
       const actions = [
         { id: 'min-button', action: 'MINIMIZE_WINDOW' },
         { id: 'max-button', action: 'MAXIMIZE_WINDOW' },
         { id: 'restore-button', action: 'RESTORE_WINDOW' },
         { id: 'close-button', action: 'CLOSE_APP' }
-      ];
+      ]
 
       actions.forEach(({ id, action }) => {
-        const element = document.getElementById(id);
+        const element = document.getElementById(id)
         if (element) {
           element.addEventListener('click', () => {
-            ipcRenderer.send('TITLE_BAR_ACTION', action);
-            return;
-          });
+            ipcRenderer.send('TITLE_BAR_ACTION', action)
+            return
+          })
         }
-      });
+      })
 
-      ipcRenderer.removeAllListeners('unmaximized');
-      ipcRenderer.removeAllListeners('maximized');
+      ipcRenderer.removeAllListeners('unmaximized')
+      ipcRenderer.removeAllListeners('maximized')
 
       ipcRenderer.on('unmaximized', () => {
-        document.getElementById('restore-button')?.classList.add('hidden');
-        document.getElementById('max-button')?.classList.remove('hidden');
-      });
+        document.getElementById('restore-button')?.classList.add('hidden')
+        document.getElementById('max-button')?.classList.remove('hidden')
+      })
 
       ipcRenderer.on('maximized', () => {
-        document.getElementById('restore-button')?.classList.remove('hidden');
-        document.getElementById('max-button')?.classList.add('hidden');
-      });
-    };
+        document.getElementById('restore-button')?.classList.remove('hidden')
+        document.getElementById('max-button')?.classList.add('hidden')
+      })
+    }
 
     if (document.readyState === 'complete') {
-      handleWindowControls();
+      handleWindowControls()
     } else {
       document.addEventListener('readystatechange', () => {
         if (document.readyState === 'complete') {
-          handleWindowControls();
+          handleWindowControls()
         }
-      });
+      })
     }
 
     return (): void => {
-      const actions = ['min-button', 'max-button', 'restore-button', 'close-button'];
+      const actions = ['min-button', 'max-button', 'restore-button', 'close-button']
       actions.forEach((id) => {
-        const element = document.getElementById(id);
+        const element = document.getElementById(id)
         if (element) {
-          element.removeEventListener('click', () => {});
+          element.removeEventListener('click', () => {})
         }
-      });
+      })
 
-      ipcRenderer?.removeAllListeners('unmaximized');
-      ipcRenderer?.removeAllListeners('maximized');
-    };
-  }, []);
+      ipcRenderer?.removeAllListeners('unmaximized')
+      ipcRenderer?.removeAllListeners('maximized')
+    }
+  }, [])
 
   useEffect(() => {
     ipcRenderer.on('new-tab', () => {
-      addTab();
-    });
+      addTab()
+    })
     ipcRenderer.on(`go-to-tab-0`, () => {
-      console.log(tabs);
-      setActivePage(tabs[0].id);
-    });
+      console.log(tabs)
+      setActivePage(tabs[0].id)
+    })
     ipcRenderer.on(`go-to-tab-1`, () => {
-      console.log(tabs);
-      setActivePage(tabs[1].id);
-    });
+      console.log(tabs)
+      setActivePage(tabs[1].id)
+    })
     ipcRenderer.on(`go-to-tab-2`, () => {
-      console.log(tabs);
-      setActivePage(tabs[2].id);
-    });
+      console.log(tabs)
+      setActivePage(tabs[2].id)
+    })
     ipcRenderer.on(`go-to-tab-3`, () => {
-      console.log(tabs);
-      setActivePage(tabs[3].id);
-    });
+      console.log(tabs)
+      setActivePage(tabs[3].id)
+    })
     ipcRenderer.on(`go-to-tab-4`, () => {
-      setActivePage(tabs[4].id);
-    });
+      setActivePage(tabs[4].id)
+    })
     ipcRenderer.on(`go-to-tab-5`, () => {
-      setActivePage(tabs[5].id);
-    });
+      setActivePage(tabs[5].id)
+    })
     ipcRenderer.on(`go-to-tab-6`, () => {
-      setActivePage(tabs[6].id);
-    });
+      setActivePage(tabs[6].id)
+    })
     ipcRenderer.on(`go-to-tab-7`, () => {
-      setActivePage(tabs[7].id);
-    });
+      setActivePage(tabs[7].id)
+    })
     ipcRenderer.on(`go-to-tab-8`, () => {
-      setActivePage(tabs[8].id);
-    });
+      setActivePage(tabs[8].id)
+    })
     ipcRenderer.on(`go-to-tab-9`, () => {
-      setActivePage(tabs[9].id);
-    });
+      setActivePage(tabs[9].id)
+    })
     const handleContextMenuCommand = (_event, command, data): void => {
       switch (command) {
         case 'back':
-          handleGoBack();
-          break;
+          handleGoBack()
+          break
         case 'forward':
-          handleGoForward();
-          break;
+          handleGoForward()
+          break
         case 'reload':
-          handleReload();
-          break;
+          handleReload()
+          break
         case 'inspect':
-          handleInspect();
-          break;
+          handleInspect()
+          break
         case 'open-link-new-tab':
-          openLinkInNewTab(data);
-          break;
+          openLinkInNewTab(data)
+          break
         case 'copy-link':
         case 'copy':
-          clipboard.writeText(data, 'selection');
-          break;
+          clipboard.writeText(data, 'selection')
+          break
         case 'save-image':
-          handleDownload(data);
-          break;
+          handleDownload(data)
+          break
         case 'search':
-          openLinkInNewTab(`https://www.google.com/search?q=${encodeURIComponent(data)}`);
-          break;
+          openLinkInNewTab(`https://www.google.com/search?q=${encodeURIComponent(data)}`)
+          break
       }
-    };
+    }
     tabs.forEach((tab) => {
       ipcRenderer.on('new-history-tab', () => {
-        openCobaltPage('History', 'cobalt://history');
-      });
+        openCobaltPage('History', 'cobalt://history')
+      })
       ipcRenderer.on('close-active-tab', () => {
-        closeTab(tabs[activeTabIndex].id);
-      });
+        closeTab(tabs[activeTabIndex].id)
+      })
       ipcRenderer.on('open-last-tab', () => {
-        addLastTab();
-      });
-      const webview = webviewRefs.current[tab.id];
+        addLastTab()
+      })
+      const webview = webviewRefs.current[tab.id]
       if (webview) {
         webview.addEventListener('context-menu', (event) => {
           // event.preventDefault();
@@ -538,15 +538,15 @@ function App(): JSX.Element {
             isEditable: event.params.isEditable,
             editFlags: event.params.editFlags
             // Add other relevant data from the event
-          });
-        });
+          })
+        })
         webview.addEventListener('dom-ready', () => {
           ipcRenderer.on('toggle-webview-devtools', () => {
-            webview.openDevTools();
-          });
+            webview.openDevTools()
+          })
           ipcRenderer.on('reload-webview', () => {
-            handleReload();
-          });
+            handleReload()
+          })
 
           // webview.executeJavaScript
 
@@ -562,7 +562,7 @@ function App(): JSX.Element {
             background-color: rgb(18, 22, 26);
           }
           ::-webkit-scrollbar-thumb {
-            height: 10%;
+            height: 5%;
             width: 5px;
             background-color: rgb(32, 40, 48);
             background-color: #cdd6f4;
@@ -576,96 +576,96 @@ function App(): JSX.Element {
           ::-webkit-scrollbar-corner {
             background-color: rgb(32, 40, 48);
           }
-        `);
-        });
+        `)
+        })
 
         const handleNavigate = (): void => {
-          const title = webview.getTitle();
-          const url = webview.getURL();
+          const title = webview.getTitle()
+          const url = webview.getURL()
 
           setTabs((prevTabs) => {
-            return prevTabs.map((t) => (t.id === tab.id ? { ...t, name: title, url: url } : t));
-          });
+            return prevTabs.map((t) => (t.id === tab.id ? { ...t, name: title, url: url } : t))
+          })
 
           if (tab.id === activeTab) {
-            setCanGoBack(webview.canGoBack());
-            setCanGoForward(webview.canGoForward());
-            setSearchInput(url);
-            addToHistory(url, title);
+            setCanGoBack(webview.canGoBack())
+            setCanGoForward(webview.canGoForward())
+            setSearchInput(url)
+            addToHistory(url, title)
           }
-        };
+        }
 
         const handleAboutToNavigate = (): void => {
-          const title = webview.getTitle();
-          const url = webview.getURL();
-          setLastTab({ name: title, url: url, id: idCounter, key: `key-${idCounter}` } as Tab);
-        };
+          const title = webview.getTitle()
+          const url = webview.getURL()
+          setLastTab({ name: title, url: url, id: idCounter, key: `key-${idCounter}` } as Tab)
+        }
 
         const updateTabInfo = (): void => {
-          const title = webview.getTitle();
-          const url = webview.getURL();
+          const title = webview.getTitle()
+          const url = webview.getURL()
 
           setTabs((prevTabs) => {
-            return prevTabs.map((t) => (t.id === tab.id ? { ...t, name: title, url: url } : t));
-          });
+            return prevTabs.map((t) => (t.id === tab.id ? { ...t, name: title, url: url } : t))
+          })
 
           if (tab.id === activeTab) {
-            setCanGoBack(webview.canGoBack());
-            setCanGoForward(webview.canGoForward());
-            setSearchInput(url);
+            setCanGoBack(webview.canGoBack())
+            setCanGoForward(webview.canGoForward())
+            setSearchInput(url)
           }
-        };
+        }
 
-        webview.addEventListener('did-finish-load', updateTabInfo);
-        webview.addEventListener('did-start-navigation', handleAboutToNavigate);
-        webview.addEventListener('did-navigate', handleNavigate);
-        webview.addEventListener('page-title-updated', updateTabInfo);
+        webview.addEventListener('did-finish-load', updateTabInfo)
+        webview.addEventListener('did-start-navigation', handleAboutToNavigate)
+        webview.addEventListener('did-navigate', handleNavigate)
+        webview.addEventListener('page-title-updated', updateTabInfo)
       }
-    });
+    })
 
-    const removeListener = ipcRenderer.on('context-menu-command', handleContextMenuCommand);
+    const removeListener = ipcRenderer.on('context-menu-command', handleContextMenuCommand)
     return (): void => {
       tabs.forEach((tab) => {
-        const webview = webviewRefs.current[tab.id];
+        const webview = webviewRefs.current[tab.id]
         if (webview) {
-          webview.removeEventListener('did-finish-load', () => {});
-          webview.removeEventListener('did-navigate', () => {});
-          webview.removeEventListener('page-title-updated', () => {});
-          ipcRenderer.removeAllListeners('new-tab');
-          ipcRenderer.removeAllListeners('new-history-tab');
-          ipcRenderer.removeAllListeners('close-active-tab');
-          ipcRenderer.removeAllListeners('toggle-webview-devtools');
-          ipcRenderer.removeAllListeners('reload-webview');
-          webview.removeEventListener('context-menu', () => {});
-          removeListener();
+          webview.removeEventListener('did-finish-load', () => {})
+          webview.removeEventListener('did-navigate', () => {})
+          webview.removeEventListener('page-title-updated', () => {})
+          ipcRenderer.removeAllListeners('new-tab')
+          ipcRenderer.removeAllListeners('new-history-tab')
+          ipcRenderer.removeAllListeners('close-active-tab')
+          ipcRenderer.removeAllListeners('toggle-webview-devtools')
+          ipcRenderer.removeAllListeners('reload-webview')
+          webview.removeEventListener('context-menu', () => {})
+          removeListener()
         }
-      });
-    };
-  }, [activeTab]);
+      })
+    }
+  }, [activeTab])
 
   useEffect(() => {
     if (tabs[activeTabIndex]?.url === 'cobalt://history') {
-      fetchHistory();
+      fetchHistory()
     }
-  }, [activeTabIndex, tabs]);
+  }, [activeTabIndex, tabs])
 
   useEffect(() => {
     const fetchTitles = async (): Promise<void> => {
-      const newTitles = {};
+      const newTitles = {}
       for (const site of history.sites) {
         try {
-          const title = await getTitle(site);
-          newTitles[site] = title;
+          const title = await getTitle(site)
+          newTitles[site] = title
         } catch (error) {
-          console.error('Error fetching title for', site, error);
-          newTitles[site] = 'Unable to fetch title';
+          console.error('Error fetching title for', site, error)
+          newTitles[site] = 'Unable to fetch title'
         }
       }
-      setTitles(newTitles);
-    };
+      setTitles(newTitles)
+    }
 
-    fetchTitles();
-  }, [history.sites]);
+    fetchTitles()
+  }, [history.sites])
 
   return (
     <div onContextMenu={handleContextMenu} onClick={handleClick}>
@@ -807,7 +807,7 @@ function App(): JSX.Element {
           </button>
           <button
             onClick={() => {
-              openCobaltPageFromSettings('Downloads', 'cobalt://downloads');
+              openCobaltPageFromSettings('Downloads', 'cobalt://downloads')
             }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
@@ -820,7 +820,7 @@ function App(): JSX.Element {
           </button>
           <button
             onClick={() => {
-              openCobaltPageFromSettings('History', 'cobalt://history');
+              openCobaltPageFromSettings('History', 'cobalt://history')
             }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
@@ -845,7 +845,7 @@ function App(): JSX.Element {
             key={tab.key}
             ref={(el) => {
               if (el && !webviewRefs.current[tab.id]) {
-                webviewRefs.current[tab.id] = el;
+                webviewRefs.current[tab.id] = el
               }
             }}
             src={webviewValid(tab) ? tab.url : ''}
@@ -870,11 +870,11 @@ function App(): JSX.Element {
                   <a
                     href={site}
                     onClick={(e) => {
-                      e.preventDefault();
+                      e.preventDefault()
                       const updatedTabs = tabs.map((tab) =>
                         tab.id === activeTab ? { ...tab, url: site } : tab
-                      );
-                      setTabs(updatedTabs);
+                      )
+                      setTabs(updatedTabs)
                     }}
                   >
                     {site}
@@ -900,11 +900,11 @@ function App(): JSX.Element {
                   <a
                     href={site}
                     onClick={(e) => {
-                      e.preventDefault();
+                      e.preventDefault()
                       const updatedTabs = tabs.map((tab) =>
                         tab.id === activeTab ? { ...tab, url: site } : tab
-                      );
-                      setTabs(updatedTabs);
+                      )
+                      setTabs(updatedTabs)
                     }}
                   >
                     {site}
@@ -957,7 +957,7 @@ function App(): JSX.Element {
         )}
       </div>
     </div>
-  );
+  )
 }
 
-export default App;
+export default App
