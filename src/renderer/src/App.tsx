@@ -6,6 +6,7 @@ import maximize from './assets/icons/max-w-10.png';
 import minimize from './assets/icons/min-w-10.png';
 import cobalt from './assets/icons/icon.png';
 import { WebviewTag, clipboard } from 'electron';
+import Webview from './components/Webview';
 
 interface Tab {
 	name: string;
@@ -19,10 +20,6 @@ interface Theme {
 	colors: Record<string, string>;
 	// isActive: boolean
 }
-
-interface WebviewProps extends React.ComponentProps<'webview'> {}
-
-const Webview: React.FC<WebviewProps> = (props) => <webview {...props} />;
 
 function App(): JSX.Element {
 	const [idCounter, setIdCounter] = useState(1);
@@ -523,39 +520,32 @@ function App(): JSX.Element {
 		ipcRenderer.on('new-tab', () => {
 			addTab();
 		});
-		ipcRenderer.on(`go-to-tab-0`, () => {
-			console.log(tabs);
+		ipcRenderer.on('go-to-tab-1', () => {
 			setActivePage(tabs[0].id);
 		});
-		ipcRenderer.on(`go-to-tab-1`, () => {
-			console.log(tabs);
+		ipcRenderer.on('go-to-tab-2', () => {
 			setActivePage(tabs[1].id);
 		});
-		ipcRenderer.on(`go-to-tab-2`, () => {
-			console.log(tabs);
+		ipcRenderer.on('go-to-tab-3', () => {
 			setActivePage(tabs[2].id);
 		});
-		ipcRenderer.on(`go-to-tab-3`, () => {
-			console.log(tabs);
+		ipcRenderer.on('go-to-tab-4', () => {
 			setActivePage(tabs[3].id);
 		});
-		ipcRenderer.on(`go-to-tab-4`, () => {
+		ipcRenderer.on('go-to-tab-5', () => {
 			setActivePage(tabs[4].id);
 		});
-		ipcRenderer.on(`go-to-tab-5`, () => {
+		ipcRenderer.on('go-to-tab-6', () => {
 			setActivePage(tabs[5].id);
 		});
-		ipcRenderer.on(`go-to-tab-6`, () => {
+		ipcRenderer.on('go-to-tab-7', () => {
 			setActivePage(tabs[6].id);
 		});
-		ipcRenderer.on(`go-to-tab-7`, () => {
+		ipcRenderer.on('go-to-tab-8', () => {
 			setActivePage(tabs[7].id);
 		});
-		ipcRenderer.on(`go-to-tab-8`, () => {
-			setActivePage(tabs[8].id);
-		});
-		ipcRenderer.on(`go-to-tab-9`, () => {
-			setActivePage(tabs[9].id);
+		ipcRenderer.on('go-to-tab-9', () => {
+			setActivePage(tabs[tabs.length - 1].id);
 		});
 		const handleContextMenuCommand = (_event, command, data): void => {
 			switch (command) {
@@ -586,20 +576,19 @@ function App(): JSX.Element {
 					break;
 			}
 		};
+		ipcRenderer.on('new-history-tab', () => {
+			openCobaltPage('History', 'cobalt://history');
+		});
+		ipcRenderer.on('close-active-tab', () => {
+			closeTab(activeTab);
+		});
+		ipcRenderer.on('open-last-tab', () => {
+			addLastTab();
+		});
 		tabs.forEach((tab) => {
-			ipcRenderer.on('new-history-tab', () => {
-				openCobaltPage('History', 'cobalt://history');
-			});
-			ipcRenderer.on('close-active-tab', () => {
-				closeTab(activeTab);
-			});
-			ipcRenderer.on('open-last-tab', () => {
-				addLastTab();
-			});
 			const webview = webviewRefs.current[tab.id];
 			if (webview) {
 				webview.addEventListener('context-menu', (event) => {
-					// event.preventDefault();
 					ipcRenderer.send('show-context-menu', {
 						x: event.params.x,
 						y: event.params.y,
@@ -612,48 +601,14 @@ function App(): JSX.Element {
 						formControlType: event.params.formControlType,
 						isEditable: event.params.isEditable,
 						editFlags: event.params.editFlags
-						// Add other relevant data from the event
 					});
 				});
-				webview.addEventListener('dom-ready', () => {
-					ipcRenderer.on('toggle-webview-devtools', () => {
-						webview.openDevTools();
-					});
-					ipcRenderer.on('reload-webview', () => {
-						handleReload();
-					});
-
-					// webview.executeJavaScript
-
-					webview.insertCSS(`
-          ::-webkit-scrollbar {
-            width: 15px;
-            height: 10px;
-          }
-          ::-webkit-scrollbar-track {
-            background-color: rgb(32, 40, 48);
-          }
-          ::-webkit-scrollbar-track-piece {
-            background-color: rgb(18, 22, 26);
-          }
-          ::-webkit-scrollbar-thumb {
-            height: 5%;
-            width: 5px;
-            background-color: rgb(32, 40, 48);
-            background-color: #cdd6f4;
-            border: 1px rgb(18, 22, 26) solid;
-          }
-          ::-webkit-scrollbar-thumb:hover {
-            opacity: 0.2;
-            background-color: #b4befe;
-          }
-
-          ::-webkit-scrollbar-corner {
-            background-color: rgb(32, 40, 48);
-          }
-        `);
+				ipcRenderer.on('reload-webview', () => {
+					handleReload();
 				});
-
+				ipcRenderer.on('toggle-webview-devtools', () => {
+					webview.openDevTools();
+				});
 				const handleNavigate = (): void => {
 					const title = webview.getTitle();
 					const url = webview.getURL();
@@ -684,6 +639,7 @@ function App(): JSX.Element {
 				};
 
 				const updateTabInfo = (): void => {
+					handleNavigate();
 					const title = webview.getTitle();
 					const url = webview.getURL();
 
@@ -699,33 +655,70 @@ function App(): JSX.Element {
 						setSearchInput(url);
 					}
 				};
-
 				webview.addEventListener('did-finish-load', updateTabInfo);
 				webview.addEventListener('did-start-navigation', handleAboutToNavigate);
-				webview.addEventListener('did-navigate', handleNavigate);
 				webview.addEventListener('page-title-updated', updateTabInfo);
+				webview.addEventListener('dom-ready', () => {
+					webview.insertCSS(`
+						::-webkit-scrollbar {
+							width: 15px;
+							height: 10px;
+						}
+						::-webkit-scrollbar-track {
+							background-color: rgb(32, 40, 48);
+						}
+						::-webkit-scrollbar-track-piece {
+							background-color: rgb(18, 22, 26);
+						}
+						::-webkit-scrollbar-thumb {
+							height: 5%;
+							width: 5px;
+							background-color: rgb(32, 40, 48);
+							background-color: #cdd6f4;
+							border: 1px rgb(18, 22, 26) solid;
+						}
+						::-webkit-scrollbar-thumb:hover {
+							opacity: 0.2;
+							background-color: #b4befe;
+						}
+
+						::-webkit-scrollbar-corner {
+							background-color: rgb(32, 40, 48);
+						}
+					`);
+				});
 			}
 		});
 
 		const removeListener = ipcRenderer.on('context-menu-command', handleContextMenuCommand);
 		return (): void => {
+			ipcRenderer.removeAllListeners('new-tab');
+			ipcRenderer.removeAllListeners('new-history-tab');
+			ipcRenderer.removeAllListeners('close-active-tab');
+			ipcRenderer.removeAllListeners('go-to-tab-1');
+			ipcRenderer.removeAllListeners('go-to-tab-2');
+			ipcRenderer.removeAllListeners('go-to-tab-3');
+			ipcRenderer.removeAllListeners('go-to-tab-4');
+			ipcRenderer.removeAllListeners('go-to-tab-5');
+			ipcRenderer.removeAllListeners('go-to-tab-6');
+			ipcRenderer.removeAllListeners('go-to-tab-7');
+			ipcRenderer.removeAllListeners('go-to-tab-8');
+			ipcRenderer.removeAllListeners('go-to-tab-9');
+			ipcRenderer.removeAllListeners('toggle-webview-devtools');
+			ipcRenderer.removeAllListeners('reload-webview');
 			tabs.forEach((tab) => {
 				const webview = webviewRefs.current[tab.id];
 				if (webview) {
 					webview.removeEventListener('did-finish-load', () => {});
 					webview.removeEventListener('did-navigate', () => {});
 					webview.removeEventListener('page-title-updated', () => {});
-					ipcRenderer.removeAllListeners('new-tab');
-					ipcRenderer.removeAllListeners('new-history-tab');
-					ipcRenderer.removeAllListeners('close-active-tab');
-					ipcRenderer.removeAllListeners('toggle-webview-devtools');
-					ipcRenderer.removeAllListeners('reload-webview');
+
 					webview.removeEventListener('context-menu', () => {});
 					removeListener();
 				}
 			});
 		};
-	}, [activeTab]);
+	}, [tabs[activeTabIndex], tabs]);
 
 	useEffect(() => {
 		if (tabs[activeTabIndex]?.url === 'cobalt://history') {
@@ -976,7 +969,7 @@ function App(): JSX.Element {
 						src={webviewValid(tab) ? tab.url : ''}
 						style={{
 							width: '100vw',
-							height: 'calc(100vh - 110px)',
+							height: 'calc(100vh - 118px)',
 							border: 'none',
 							overflowWrap: 'break-word',
 							display: webviewValid(tab) ? 'flex' : 'none'

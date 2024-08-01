@@ -1,10 +1,10 @@
 {
-  "name": "Nebulock",
-  "version": "1.0",
-  "description": "Adblocker by Nebula",
-  "manifest_version": 3,
-  "permissions": ["declarativeNetRequest"],
-  "declarative_net_request": {
-    "rule_resources": [{ "id": "ruleset_1", "enabled": true, "path": "./rules.json" }]
-  }
+	"name": "Nebulock",
+	"version": "1.0",
+	"description": "Adblocker by Nebula",
+	"manifest_version": 3,
+	"permissions": ["declarativeNetRequest"],
+	"declarative_net_request": {
+		"rule_resources": [{ "id": "ruleset_1", "enabled": true, "path": "./rules.json" }]
+	}
 }

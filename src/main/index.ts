@@ -191,7 +191,6 @@ function createWindow(x: number, y: number, width: number, height: number): void
 			webSecurity: false,
 			nodeIntegration: true,
 			contextIsolation: false
-			// devTools: true
 		}
 	});
 
@@ -289,7 +288,7 @@ function createWindow(x: number, y: number, width: number, height: number): void
 		handleTitleBarActions(mainWindow, args);
 	});
 
-	ipcMain.setMaxListeners(Infinity);
+	ipcMain.setMaxListeners(200000000);
 
 	const MAX_HISTORY_ENTRIES = 1000;
 	const TIME_THRESHOLD = 20000;
@@ -461,14 +460,43 @@ function createWindow(x: number, y: number, width: number, height: number): void
 			mainWindow.webContents.send('close-active-tab');
 			return false;
 		});
-		for (let i = 0; i < 10; i++) {
-			globalShortcut.register(`CmdOrCtrl+${i}`, () => {
-				mainWindow.webContents.send(`go-to-tab ${i}`);
-				return false;
-			});
-		}
+		globalShortcut.register('CmdOrCtrl+1', () => {
+			mainWindow.webContents.send('go-to-tab-1');
+			return false;
+		});
+		globalShortcut.register('CmdOrCtrl+2', () => {
+			mainWindow.webContents.send('go-to-tab-2');
+			return false;
+		});
+		globalShortcut.register('CmdOrCtrl+3', () => {
+			mainWindow.webContents.send('go-to-tab-3');
+			return false;
+		});
+		globalShortcut.register('CmdOrCtrl+4', () => {
+			mainWindow.webContents.send('go-to-tab-4');
+			return false;
+		});
+		globalShortcut.register('CmdOrCtrl+5', () => {
+			mainWindow.webContents.send('go-to-tab-5');
+			return false;
+		});
+		globalShortcut.register('CmdOrCtrl+6', () => {
+			mainWindow.webContents.send('go-to-tab-6');
+			return false;
+		});
+		globalShortcut.register('CmdOrCtrl+7', () => {
+			mainWindow.webContents.send('go-to-tab-7');
+			return false;
+		});
+		globalShortcut.register('CmdOrCtrl+8', () => {
+			mainWindow.webContents.send('go-to-tab-8');
+			return false;
+		});
+		globalShortcut.register('CmdOrCtrl+9', () => {
+			mainWindow.webContents.send('go-to-tab-9');
+			return false;
+		});
 	});
-
 	ipcMain.on('download', (_event, { payload }) => {
 		mainWindow.webContents.downloadURL(payload.url);
 	});
