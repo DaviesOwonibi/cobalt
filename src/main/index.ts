@@ -636,17 +636,17 @@ function handleTitleBarActions(windowObj: BrowserWindow, args: string): void {
 }
 
 app.whenReady().then(() => {
+	const { width, height } = settingsStore.get('windowBounds') as {
+		width: number;
+		height: number;
+	};
+	const { x, y } = settingsStore.get('position') as { x: number; y: number };
 	electronApp.setAppUserModelId('com.cobalt');
 
 	app.on('browser-window-created', (_, window) => {
 		optimizer.watchWindowShortcuts(window);
 	});
 
-	const { width, height } = settingsStore.get('windowBounds') as {
-		width: number;
-		height: number;
-	};
-	const { x, y } = settingsStore.get('position') as { x: number; y: number };
 	createWindow(x, y, width, height);
 
 	app.on('activate', () => {

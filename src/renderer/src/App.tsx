@@ -27,7 +27,7 @@ function App(): JSX.Element {
 	const [activeTab, setActiveTab] = useState<number>(0);
 	const [searchInput, setSearchInput] = useState('');
 	const [homeSearchInput, setHomeSearchInput] = useState('');
-	// const webviewRefs = useRef<{ [key: number]: Electron.WebviewTag }>({});
+	const searchInputRef = useRef<HTMLInputElement>(null);
 	const webviewRefs = useRef<{ [key: string]: WebviewTag }>({});
 	const [canGoBack, setCanGoBack] = useState(false);
 	const [canGoForward, setCanGoForward] = useState(false);
@@ -193,6 +193,9 @@ function App(): JSX.Element {
 	const [showThemeForm, setShowThemeForm] = useState(false);
 	const themeFormRef = useRef<HTMLDivElement>(null);
 	const themeButtonRef = useRef<HTMLButtonElement>(null);
+	const [settingsVisibility, setSettingsVisibility] = useState(false);
+	const settingsBtnRef = useRef<HTMLButtonElement>(null);
+	const settingsMenuRef = useRef<HTMLDivElement>(null);
 	const activeTabIndex = tabs.findIndex((tab) => tab.id === activeTab);
 	const ipcRenderer = (window as any).electron.ipcRenderer;
 	const popup = Notification({
@@ -209,6 +212,9 @@ function App(): JSX.Element {
 		setIdCounter(idCounter + 1);
 		setActiveTab(newTab.id);
 		setSearchInput('');
+		if (searchInputRef.current) {
+			searchInputRef.current.focus();
+		}
 	}
 
 	function openLinkInNewTab(url: string): void {
@@ -228,6 +234,9 @@ function App(): JSX.Element {
 		}
 		setIdCounter(idCounter + 1);
 		setActiveTab(newTab.id);
+		if (searchInputRef.current) {
+			searchInputRef.current.focus();
+		}
 	}
 
 	function addLastTab(): void {
@@ -242,17 +251,9 @@ function App(): JSX.Element {
 			setIdCounter(idCounter + 1);
 			setActiveTab(newTab.id);
 			setSearchInput('');
-		} else {
-			const newTab = {
-				name: 'Hi',
-				url: 'cobalt://history',
-				id: idCounter,
-				key: `tab-${idCounter}`
-			};
-			setTabs([...tabs, newTab]);
-			setIdCounter(idCounter + 1);
-			setActiveTab(newTab.id);
-			setSearchInput('');
+			if (searchInputRef.current) {
+				searchInputRef.current.focus();
+			}
 		}
 	}
 
@@ -268,6 +269,9 @@ function App(): JSX.Element {
 		setActiveTab(cobaltTab.id);
 		setSearchInput(url);
 		showSettings();
+		if (searchInputRef.current) {
+			searchInputRef.current.focus();
+		}
 	}
 	function openCobaltPage(name: string, url: string): void {
 		const cobaltTab = {
@@ -280,6 +284,9 @@ function App(): JSX.Element {
 		setIdCounter(idCounter + 1);
 		setActiveTab(cobaltTab.id);
 		setSearchInput(url);
+		if (searchInputRef.current) {
+			searchInputRef.current.focus();
+		}
 	}
 
 	function closeTab(id: number): void {
@@ -326,10 +333,7 @@ function App(): JSX.Element {
 	// Settings
 
 	const showSettings = (): void => {
-		const settingsMenu = document.getElementById('settings-menu');
-		if (settingsMenu) {
-			settingsMenu.classList.toggle('show');
-		}
+		setSettingsVisibility(!settingsVisibility);
 	};
 
 	function settingsMenuAddTab(): void {
@@ -963,6 +967,14 @@ function App(): JSX.Element {
 				!themeButtonRef.current.contains(event.target)
 			) {
 				setShowThemeForm(false);
+			} else if (
+				settingsVisibility &&
+				settingsBtnRef.current &&
+				settingsMenuRef.current &&
+				!settingsBtnRef.current.contains(event.target) &&
+				!settingsMenuRef.current.contains(event.target)
+			) {
+				setSettingsVisibility(false);
 			}
 		};
 
@@ -970,7 +982,7 @@ function App(): JSX.Element {
 		return (): void => {
 			document.removeEventListener('mousedown', handleClickOutside);
 		};
-	}, [showThemeForm]);
+	}, [showThemeForm, settingsVisibility]);
 
 	return (
 		<>
@@ -1090,6 +1102,8 @@ function App(): JSX.Element {
 							aria-placeholder="Search Google or enter address"
 							placeholder="Search Google or enter address"
 							spellCheck="false"
+							ref={searchInputRef}
+							autoFocus
 						/>
 					</label>
 				</form>
@@ -1102,7 +1116,12 @@ function App(): JSX.Element {
 							/>
 						</svg>
 					</button>
-					<button className="pageBtn" id="settingsBtn" onClick={showSettings}>
+					<button
+						className="pageBtn"
+						id="settingsBtn"
+						onClick={showSettings}
+						ref={settingsBtnRef}
+					>
 						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512">
 							<path
 								fill="#cdd6f4"
@@ -1111,56 +1130,47 @@ function App(): JSX.Element {
 						</svg>
 					</button>
 				</div>
-				<div id="settings-menu">
-					<button onClick={settingsMenuAddTab}>
-						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512">
-							<path
-								fill="#cdd6f4"
-								d="M64 32C28.7 32 0 60.7 0 96L0 416c0 35.3 28.7 64 64 64l320 0c35.3 0 64-28.7 64-64l0-320c0-35.3-28.7-64-64-64L64 32zM200 344l0-64-64 0c-13.3 0-24-10.7-24-24s10.7-24 24-24l64 0 0-64c0-13.3 10.7-24 24-24s24 10.7 24 24l0 64 64 0c13.3 0 24 10.7 24 24s-10.7 24-24 24l-64 0 0 64c0 13.3-10.7 24-24 24s-24-10.7-24-24z"
-							/>
-						</svg>
-						New Tab
-					</button>
-					{/* <button
-            onClick={() => {
-              openCobaltPageFromSettings('Downloads', 'cobalt://downloads')
-            }}
-          >
-            <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'>
-              <path
-                fill='#cdd6f4'
-                d='M288 32c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 242.7-73.4-73.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l128 128c12.5 12.5 32.8 12.5 45.3 0l128-128c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L288 274.7 288 32zM64 352c-35.3 0-64 28.7-64 64l0 32c0 35.3 28.7 64 64 64l384 0c35.3 0 64-28.7 64-64l0-32c0-35.3-28.7-64-64-64l-101.5 0-45.3 45.3c-25 25-65.5 25-90.5 0L165.5 352 64 352zm368 56a24 24 0 1 1 0 48 24 24 0 1 1 0-48z'
-              />
-            </svg>
-            Downloads
-          </button> */}
-					<button
-						onClick={() => {
-							openCobaltPageFromSettings('Themes', 'cobalt://themes');
-						}}
-					>
-						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-							<path
-								fill="#cdd6f4"
-								d="M512 256c0 .9 0 1.8 0 2.7c-.4 36.5-33.6 61.3-70.1 61.3L344 320c-26.5 0-48 21.5-48 48c0 3.4 .4 6.7 1 9.9c2.1 10.2 6.5 20 10.8 29.9c6.1 13.8 12.1 27.5 12.1 42c0 31.8-21.6 60.7-53.4 62c-3.5 .1-7 .2-10.6 .2C114.6 512 0 397.4 0 256S114.6 0 256 0S512 114.6 512 256zM128 288a32 32 0 1 0 -64 0 32 32 0 1 0 64 0zm0-96a32 32 0 1 0 0-64 32 32 0 1 0 0 64zM288 96a32 32 0 1 0 -64 0 32 32 0 1 0 64 0zm96 96a32 32 0 1 0 0-64 32 32 0 1 0 0 64z"
-							/>
-						</svg>
-						Themes
-					</button>
-					<button
-						onClick={() => {
-							openCobaltPageFromSettings('History', 'cobalt://history');
-						}}
-					>
-						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-							<path
-								fill="#cdd6f4"
-								d="M48 106.7L48 56c0-13.3-10.7-24-24-24S0 42.7 0 56L0 168c0 13.3 10.7 24 24 24l112 0c13.3 0 24-10.7 24-24s-10.7-24-24-24l-55.3 0c37-57.8 101.7-96 175.3-96c114.9 0 208 93.1 208 208s-93.1 208-208 208c-42.5 0-81.9-12.7-114.7-34.5c-11-7.3-25.9-4.3-33.3 6.7s-4.3 25.9 6.7 33.3C155.2 496.4 203.8 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C170.3 0 94.4 42.1 48 106.7zM256 128c-13.3 0-24 10.7-24 24l0 104c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65 0-94.1c0-13.3-10.7-24-24-24z"
-							/>
-						</svg>
-						History
-					</button>
-				</div>
+				{settingsVisibility ? (
+					<div id="settings-menu" ref={settingsMenuRef}>
+						<button onClick={settingsMenuAddTab}>
+							<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512">
+								<path
+									fill="#cdd6f4"
+									d="M64 32C28.7 32 0 60.7 0 96L0 416c0 35.3 28.7 64 64 64l320 0c35.3 0 64-28.7 64-64l0-320c0-35.3-28.7-64-64-64L64 32zM200 344l0-64-64 0c-13.3 0-24-10.7-24-24s10.7-24 24-24l64 0 0-64c0-13.3 10.7-24 24-24s24 10.7 24 24l0 64 64 0c13.3 0 24 10.7 24 24s-10.7 24-24 24l-64 0 0 64c0 13.3-10.7 24-24 24s-24-10.7-24-24z"
+								/>
+							</svg>
+							New Tab
+						</button>
+						<button
+							onClick={() => {
+								openCobaltPageFromSettings('Themes', 'cobalt://themes');
+							}}
+						>
+							<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+								<path
+									fill="#cdd6f4"
+									d="M512 256c0 .9 0 1.8 0 2.7c-.4 36.5-33.6 61.3-70.1 61.3L344 320c-26.5 0-48 21.5-48 48c0 3.4 .4 6.7 1 9.9c2.1 10.2 6.5 20 10.8 29.9c6.1 13.8 12.1 27.5 12.1 42c0 31.8-21.6 60.7-53.4 62c-3.5 .1-7 .2-10.6 .2C114.6 512 0 397.4 0 256S114.6 0 256 0S512 114.6 512 256zM128 288a32 32 0 1 0 -64 0 32 32 0 1 0 64 0zm0-96a32 32 0 1 0 0-64 32 32 0 1 0 0 64zM288 96a32 32 0 1 0 -64 0 32 32 0 1 0 64 0zm96 96a32 32 0 1 0 0-64 32 32 0 1 0 0 64z"
+								/>
+							</svg>
+							Themes
+						</button>
+						<button
+							onClick={() => {
+								openCobaltPageFromSettings('History', 'cobalt://history');
+							}}
+						>
+							<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+								<path
+									fill="#cdd6f4"
+									d="M48 106.7L48 56c0-13.3-10.7-24-24-24S0 42.7 0 56L0 168c0 13.3 10.7 24 24 24l112 0c13.3 0 24-10.7 24-24s-10.7-24-24-24l-55.3 0c37-57.8 101.7-96 175.3-96c114.9 0 208 93.1 208 208s-93.1 208-208 208c-42.5 0-81.9-12.7-114.7-34.5c-11-7.3-25.9-4.3-33.3 6.7s-4.3 25.9 6.7 33.3C155.2 496.4 203.8 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C170.3 0 94.4 42.1 48 106.7zM256 128c-13.3 0-24 10.7-24 24l0 104c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65 0-94.1c0-13.3-10.7-24-24-24z"
+								/>
+							</svg>
+							History
+						</button>
+					</div>
+				) : (
+					<></>
+				)}
 			</div>
 
 			<div className="page" style={{ width: '100%', height: '100vh' }}>
@@ -1175,7 +1185,7 @@ function App(): JSX.Element {
 						src={webviewValid(tab) ? tab.url : ''}
 						style={{
 							width: '100vw',
-							height: 'calc(100vh - 118px)',
+							height: 'calc(100vh - 102px)',
 							border: 'none',
 							overflowWrap: 'break-word',
 							display: webviewValid(tab) ? 'flex' : 'none'
