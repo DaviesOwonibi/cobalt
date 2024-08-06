@@ -1,5 +1,6 @@
 {
 	"name": "cobalt",
+	"productName": "Cobalt",
 	"version": "1.0.0",
 	"description": "A browser built with Electron",
 	"main": "./out/main/index.js",
@@ -39,7 +40,7 @@
 		},
 		"nsis": {
 			"oneClick": false,
-			"uninstallDisplayName": "Uninstall Cobalt",
+			"uninstallDisplayName": "Cobalt",
 			"allowToChangeInstallationDirectory": true,
 			"createDesktopShortcut": "always",
 			"createStartMenuShortcut": true,

@@ -7,6 +7,7 @@ import minimize from './assets/icons/min-w-10.png';
 import cobalt from './assets/icons/icon.png';
 import { WebviewTag, clipboard } from 'electron';
 import Webview from './components/Webview';
+import Notification from './assets/Notifications/notifications.js';
 
 interface Tab {
 	name: string;
@@ -18,7 +19,6 @@ interface Tab {
 interface Theme {
 	name: string;
 	colors: Record<string, string>;
-	// isActive: boolean
 }
 
 function App(): JSX.Element {
@@ -42,7 +42,135 @@ function App(): JSX.Element {
 	});
 	const [titles, setTitles] = useState({});
 	const [lastTab, setLastTab] = useState<Tab>();
-	const [themes, setThemes] = useState<Theme[]>([]);
+	const [themes, setThemes] = useState<Theme[]>([
+		{
+			name: 'Catppuccin',
+			colors: {
+				textColor: '#cdd6f4',
+				accentColor: '#b4befe',
+				lighterAccentColor: '#c0c7f0',
+				disabledColor: '#4f577f',
+				backgroundColor: '#1e1e2e',
+				scrollbarTrackColor: 'rgb(32, 40, 48)',
+				scrollbarTrackPieceColor: 'rgb(18, 22, 26)',
+				tabBackgroundColor: '#313244',
+				tabHoverColor: '#7f849c',
+				pageBtnHoverColor: '#1e1e1e',
+				activeTabColor: '#6c7086',
+				searchBarBackground: '#181825',
+				settingsMenuBackground: '#1e1e2e',
+				settingsMenuHoverBackground: '#313244',
+				historyLinkColor: '#89b4fa',
+				historyTimestampColor: '#6c7086'
+			}
+		},
+		{
+			name: 'One Dark Pro',
+			colors: {
+				textColor: '#abb2bf',
+				accentColor: '#61afef',
+				lighterAccentColor: '#56b6c2',
+				disabledColor: '#5c6370',
+				backgroundColor: '#282c34',
+				scrollbarTrackColor: '#21252b',
+				scrollbarTrackPieceColor: '#1e2227',
+				tabBackgroundColor: '#21252b',
+				tabHoverColor: '#323842',
+				pageBtnHoverColor: '#2c313a',
+				activeTabColor: '#3a3f4b',
+				searchBarBackground: '#21252b',
+				settingsMenuBackground: '#282c34',
+				settingsMenuHoverBackground: '#2c313a',
+				historyLinkColor: '#98c379',
+				historyTimestampColor: '#5c6370'
+			}
+		},
+		{
+			name: 'Github Dark',
+			colors: {
+				textColor: '#c9d1d9',
+				accentColor: '#58a6ff',
+				lighterAccentColor: '#79c0ff',
+				disabledColor: '#6e7681',
+				backgroundColor: '#0d1117',
+				scrollbarTrackColor: '#161b22',
+				scrollbarTrackPieceColor: '#0d1117',
+				tabBackgroundColor: '#161b22',
+				tabHoverColor: '#1f2428',
+				pageBtnHoverColor: '#1f2428',
+				activeTabColor: '#1f6feb',
+				searchBarBackground: '#161b22',
+				settingsMenuBackground: '#161b22',
+				settingsMenuHoverBackground: '#1f2428',
+				historyLinkColor: '#58a6ff',
+				historyTimestampColor: '#8b949e'
+			}
+		},
+		{
+			name: 'Tokyo Night',
+			colors: {
+				textColor: '#a9b1d6',
+				accentColor: '#7aa2f7',
+				lighterAccentColor: '#2ac3de',
+				disabledColor: '#565f89',
+				backgroundColor: '#1a1b26',
+				scrollbarTrackColor: '#16161e',
+				scrollbarTrackPieceColor: '#101014',
+				tabBackgroundColor: '#16161e',
+				tabHoverColor: '#1f2335',
+				pageBtnHoverColor: '#1f2335',
+				activeTabColor: '#3b4261',
+				searchBarBackground: '#16161e',
+				settingsMenuBackground: '#16161e',
+				settingsMenuHoverBackground: '#1f2335',
+				historyLinkColor: '#9ece6a',
+				historyTimestampColor: '#565f89'
+			}
+		},
+		{
+			name: 'Andromeda',
+			colors: {
+				textColor: '#d5ced9',
+				accentColor: '#23b0ff',
+				lighterAccentColor: '#00e8c6',
+				disabledColor: '#5f5c6d',
+				backgroundColor: '#23262e',
+				scrollbarTrackColor: '#1c1e26',
+				scrollbarTrackPieceColor: '#181a21',
+				tabBackgroundColor: '#2b2e3b',
+				tabHoverColor: '#3e4251',
+				pageBtnHoverColor: '#3e4251',
+				activeTabColor: '#3e4251',
+				searchBarBackground: '#1c1e26',
+				settingsMenuBackground: '#1c1e26',
+				settingsMenuHoverBackground: '#2b2e3b',
+				historyLinkColor: '#ff5370',
+				historyTimestampColor: '#5f5c6d'
+			}
+		},
+		{
+			name: 'Github Light',
+			colors: {
+				textColor: '#24292e',
+				accentColor: '#0366d6',
+				lighterAccentColor: '#2188ff',
+				disabledColor: '#959da5',
+				backgroundColor: '#ffffff',
+				scrollbarTrackColor: '#f6f8fa',
+				scrollbarTrackPieceColor: '#ebedf0',
+				tabBackgroundColor: '#f6f8fa',
+				tabHoverColor: '#e1e4e8',
+				pageBtnHoverColor: '#e1e4e8',
+				activeTabColor: '#0366d6',
+				searchBarBackground: '#f6f8fa',
+				settingsMenuBackground: '#f6f8fa',
+				settingsMenuHoverBackground: '#e1e4e8',
+				historyLinkColor: '#0366d6',
+				historyTimestampColor: '#6a737d'
+			}
+		}
+	]);
+	const [activeTheme, setActiveTheme] = useState<Theme>(themes[0]);
 	const [newThemeName, setNewThemeName] = useState('');
 	const [newThemeColor, setNewThemeColor] = useState({
 		textColor: '#000000',
@@ -67,6 +195,12 @@ function App(): JSX.Element {
 	const themeButtonRef = useRef<HTMLButtonElement>(null);
 	const activeTabIndex = tabs.findIndex((tab) => tab.id === activeTab);
 	const ipcRenderer = (window as any).electron.ipcRenderer;
+	const popup = Notification({
+		position: 'center',
+		duration: 1000,
+		isHidePrev: true,
+		isHideTitle: false
+	});
 
 	// Tab management
 	function addTab(): void {
@@ -241,10 +375,33 @@ function App(): JSX.Element {
 
 	// Themes Page
 
+	// const fetchActiveTheme = async (): Promise<void> => {
+	// 	const result = await ipcRenderer.invoke('GET_ACTIVE_THEME');
+	// 	const themeOfThis = themes.find((theme) => theme.name === result);
+	// 	console.log(result, themeOfThis);
+	// 	console.log(themes);
+	// 	if (themeOfThis) {
+	// 		setActiveTheme(themeOfThis);
+	// 		applyTheme(themeOfThis);
+	// 	} else if (!themeOfThis) {
+	// 		setActiveTheme(themes[themes.length - 1]);
+	// 	}
+	// };
+
 	const fetchThemes = async (): Promise<void> => {
 		const result = await ipcRenderer.invoke('GET_THEMES');
 		if (result) {
 			setThemes(result);
+		}
+	};
+
+	const fetchThemesAndActiveTheme = async (): Promise<void> => {
+		const { themes, activeTheme } = await ipcRenderer.invoke('GET_THEMES_AND_ACTIVE_THEME');
+		const themeOfThis = themes.find((theme) => theme.name === activeTheme);
+		if (themes && themeOfThis) {
+			setThemes(themes);
+			setActiveTheme(themeOfThis);
+			applyTheme(themeOfThis);
 		}
 	};
 
@@ -262,11 +419,32 @@ function App(): JSX.Element {
 
 	const handleAddTheme = (e): void => {
 		e.preventDefault();
-		setShowThemeForm(false);
-		addTheme(newThemeName, newThemeColor);
+		const themeNames: string[] = [];
+		themes.forEach((theme) => {
+			themeNames.push(theme.name);
+		});
+		if (newThemeName !== '') {
+			if (themeNames.includes(newThemeName)) {
+				popup.error({
+					title: 'Error',
+					message: `${newThemeName} already exists.`
+				});
+			} else {
+				addTheme(newThemeName, newThemeColor);
+				setShowThemeForm(false);
+			}
+		} else {
+			popup.error({
+				title: 'Error',
+				message: `Theme must have a name.`
+			});
+		}
 	};
 
 	const handleRemoveTheme = (themeName: string): void => {
+		if (activeTheme === themes.find((theme) => theme.name === themeName)) {
+			handleSelectTheme(themes[themes.length - 2].name);
+		}
 		removeTheme(themeName);
 	};
 
@@ -288,11 +466,13 @@ function App(): JSX.Element {
 		Object.entries(theme.colors).forEach(([key, value]) => {
 			document.documentElement.style.setProperty(`--${key}`, value);
 		});
+		setActiveTheme(theme);
 	};
 
 	const handleSelectTheme = (themeName: string): void => {
 		const selectedTheme = themes.find((theme) => theme.name === themeName);
 		if (selectedTheme) {
+			ipcRenderer.send('SET_ACTIVE_THEME', themeName);
 			applyTheme(selectedTheme);
 		}
 	};
@@ -372,7 +552,6 @@ function App(): JSX.Element {
 
 	const handleGoBack = (): void => {
 		const webview = webviewRefs.current[activeTab];
-		console.log(webview, webview.canGoBack());
 		if (webview && canGoBack) {
 			webview.goBack();
 		}
@@ -380,7 +559,6 @@ function App(): JSX.Element {
 
 	const handleGoForward = (): void => {
 		const webview = webviewRefs.current[activeTab];
-		console.log(webview, webview.canGoForward());
 		if (webview && canGoForward) {
 			webview.goForward();
 		}
@@ -606,6 +784,15 @@ function App(): JSX.Element {
 				ipcRenderer.on('reload-webview', () => {
 					handleReload();
 				});
+				ipcRenderer.on('zoom-in', () => {
+					webview.setZoomLevel(webview.getZoomLevel() + 0.1);
+				});
+				ipcRenderer.on('zoom-out', () => {
+					webview.setZoomLevel(webview.getZoomLevel() - 0.1);
+				});
+				ipcRenderer.on('reset-zoom', () => {
+					webview.setZoomLevel(0);
+				});
 				ipcRenderer.on('toggle-webview-devtools', () => {
 					webview.openDevTools();
 				});
@@ -655,6 +842,7 @@ function App(): JSX.Element {
 						setSearchInput(url);
 					}
 				};
+
 				webview.addEventListener('did-finish-load', updateTabInfo);
 				webview.addEventListener('did-start-navigation', handleAboutToNavigate);
 				webview.addEventListener('page-title-updated', updateTabInfo);
@@ -746,6 +934,24 @@ function App(): JSX.Element {
 
 		fetchTitles();
 	}, [history.sites]);
+
+	useEffect(() => {
+		const loadInitialTheme = async (): Promise<void> => {
+			// fetchThemes();
+			// await fetchActiveTheme();
+			fetchThemesAndActiveTheme();
+		};
+		loadInitialTheme();
+		const openInNewTabHandler = (_event, url): void => {
+			openLinkInNewTab(url);
+		};
+
+		ipcRenderer.on('open-in-new-tab', openInNewTabHandler);
+
+		return (): void => {
+			ipcRenderer.removeListener('open-in-new-tab', openInNewTabHandler);
+		};
+	}, []);
 
 	useEffect(() => {
 		const handleClickOutside = (event): void => {

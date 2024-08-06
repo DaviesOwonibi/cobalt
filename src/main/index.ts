@@ -26,7 +26,8 @@ const settingsStore = new Store({
 	configName: 'user-preferences',
 	defaults: {
 		windowBounds: { width: 900, height: 670 },
-		position: { x: 0, y: 0 }
+		position: { x: 0, y: 0 },
+		activeTheme: 'Catppuccin'
 	}
 });
 
@@ -195,6 +196,7 @@ function createWindow(x: number, y: number, width: number, height: number): void
 	});
 
 	mainWindow.setMenu(null);
+	// mainWindow.webContents.openDevTools();
 	mainWindow.webContents.session.on('will-download', (_event, item, _webContents) => {
 		const savePath = app.getPath('downloads') + '\\' + item.getFilename();
 		const receivedBytes = item.getReceivedBytes();
@@ -362,6 +364,24 @@ function createWindow(x: number, y: number, width: number, height: number): void
 		};
 	});
 
+	ipcMain.handle('GET_ACTIVE_THEME', () => {
+		const activeTheme = settingsStore.get('activeTheme');
+
+		return activeTheme;
+	});
+
+	ipcMain.handle('GET_THEMES_AND_ACTIVE_THEME', () => {
+		const activeTheme = settingsStore.get('activeTheme');
+		const themes = themeStore.get('themes') as {
+			name: string;
+			colors: {
+				[key: string]: string;
+			};
+		}[];
+
+		return { themes, activeTheme };
+	});
+
 	ipcMain.handle('GET_THEMES', () => {
 		const themes = themeStore.get('themes') as {
 			name: string;
@@ -371,6 +391,16 @@ function createWindow(x: number, y: number, width: number, height: number): void
 		}[];
 
 		return themes;
+	});
+
+	ipcMain.on('SET_ACTIVE_THEME', (_event, themeName) => {
+		console.log(themeName);
+		try {
+			settingsStore.set('activeTheme', themeName);
+			return { success: true, message: 'Theme added successfully' };
+		} catch (err) {
+			return { success: false, message: err };
+		}
 	});
 
 	ipcMain.on(
@@ -458,6 +488,18 @@ function createWindow(x: number, y: number, width: number, height: number): void
 		});
 		globalShortcut.register('CmdOrCtrl+Q', () => {
 			mainWindow.webContents.send('close-active-tab');
+			return false;
+		});
+		globalShortcut.register('CmdOrCtrl+=', () => {
+			mainWindow.webContents.send('zoom-in');
+			return false;
+		});
+		globalShortcut.register('CmdOrCtrl+-', () => {
+			mainWindow.webContents.send('zoom-out');
+			return false;
+		});
+		globalShortcut.register('CmdOrCtrl+0', () => {
+			mainWindow.webContents.send('reset-zoom');
 			return false;
 		});
 		globalShortcut.register('CmdOrCtrl+1', () => {
