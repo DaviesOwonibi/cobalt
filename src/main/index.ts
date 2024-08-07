@@ -138,27 +138,6 @@ const themeStore = new Store({
 					historyLinkColor: '#8daef6',
 					historyTimestampColor: '#565f89'
 				}
-			},
-			{
-				name: 'Github Light',
-				colors: {
-					textColor: '#24292e',
-					accentColor: '#0366d6',
-					lighterAccentColor: '#2188ff',
-					disabledColor: '#959da5',
-					backgroundColor: '#ffffff',
-					scrollbarTrackColor: '#f6f8fa',
-					scrollbarTrackPieceColor: '#ebedf0',
-					tabBackgroundColor: '#f6f8fa',
-					tabHoverColor: '#e1e4e8',
-					pageBtnHoverColor: '#e1e4e8',
-					activeTabColor: '#0366d6',
-					searchBarBackground: '#f6f8fa',
-					settingsMenuBackground: '#f6f8fa',
-					settingsMenuHoverBackground: '#e1e4e8',
-					historyLinkColor: '#0366d6',
-					historyTimestampColor: '#6a737d'
-				}
 			}
 		]
 	}
@@ -194,9 +173,6 @@ function createWindow(x: number, y: number, width: number, height: number): void
 
 	mainWindow.setMenu(null);
 	mainWindow.webContents.openDevTools();
-
-	downloadsStore.set('downloads', []);
-	mainWindow.webContents.send('downloads-cleared');
 
 	mainWindow.webContents.session.on('will-download', (_event, item, _webContents) => {
 		const getUniqueFilePath = (basePath, fileName): string => {
@@ -542,6 +518,10 @@ function createWindow(x: number, y: number, width: number, height: number): void
 	app.on('browser-window-focus', () => {
 		globalShortcut.register('CmdOrCtrl+Shift+I', () => {
 			mainWindow.webContents.send('toggle-webview-devtools');
+			return false;
+		});
+		globalShortcut.register('CmdOrCtrl+J', () => {
+			mainWindow.webContents.send('open-downloads-page');
 			return false;
 		});
 		globalShortcut.register('CmdOrCtrl+R', () => {

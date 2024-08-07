@@ -4,10 +4,33 @@ import close from './assets/icons/close-w-10.png';
 import restore from './assets/icons/icons8-restore-down-48.png';
 import maximize from './assets/icons/max-w-10.png';
 import minimize from './assets/icons/min-w-10.png';
-import cobalt from './assets/icons/icon.png';
 import { WebviewTag, clipboard } from 'electron';
 import Webview from './components/Webview';
 import Notification from './assets/Notifications/notifications.js';
+import cobalt from './assets/icons/icon.png';
+import css from './assets/icons/downloadIcons/css.png';
+import dll from './assets/icons/downloadIcons/dll.png';
+import dmg from './assets/icons/downloadIcons/dmg.png';
+import doc from './assets/icons/downloadIcons/doc.png';
+import exe from './assets/icons/downloadIcons/exe.png';
+import file from './assets/icons/downloadIcons/file.png';
+import gif from './assets/icons/downloadIcons/gif.png';
+import html from './assets/icons/downloadIcons/html.png';
+import iso from './assets/icons/downloadIcons/iso.png';
+import jpg from './assets/icons/downloadIcons/jpg.png';
+import js from './assets/icons/downloadIcons/js.png';
+import json from './assets/icons/downloadIcons/json.png';
+import mp3 from './assets/icons/downloadIcons/mp3.png';
+import mp4 from './assets/icons/downloadIcons/mp4.png';
+import mpg from './assets/icons/downloadIcons/mpg.png';
+import msi from './assets/icons/downloadIcons/msi.png';
+import pdf from './assets/icons/downloadIcons/pdf.png';
+import png from './assets/icons/downloadIcons/png.png';
+import ppt from './assets/icons/downloadIcons/ppt.png';
+import sql from './assets/icons/downloadIcons/sql.png';
+import svg from './assets/icons/downloadIcons/svg.png';
+import txt from './assets/icons/downloadIcons/txt.png';
+import zip from './assets/icons/downloadIcons/zip.png';
 
 interface Tab {
 	name: string;
@@ -145,27 +168,6 @@ function App(): JSX.Element {
 				settingsMenuHoverBackground: '#1f2335',
 				historyLinkColor: '#8daef6',
 				historyTimestampColor: '#565f89'
-			}
-		},
-		{
-			name: 'Github Light',
-			colors: {
-				textColor: '#24292e',
-				accentColor: '#0366d6',
-				lighterAccentColor: '#2188ff',
-				disabledColor: '#959da5',
-				backgroundColor: '#ffffff',
-				scrollbarTrackColor: '#f6f8fa',
-				scrollbarTrackPieceColor: '#ebedf0',
-				tabBackgroundColor: '#f6f8fa',
-				tabHoverColor: '#e1e4e8',
-				pageBtnHoverColor: '#e1e4e8',
-				activeTabColor: '#0366d6',
-				searchBarBackground: '#f6f8fa',
-				settingsMenuBackground: '#f6f8fa',
-				settingsMenuHoverBackground: '#e1e4e8',
-				historyLinkColor: '#0366d6',
-				historyTimestampColor: '#6a737d'
 			}
 		}
 	]);
@@ -600,9 +602,77 @@ function App(): JSX.Element {
 				url: url
 			}
 		});
+		setDownloadsVisibility(true);
 	};
 
 	// Utility functions
+
+	function getFileExtension(filePath: string): string {
+		// Split the filePath by the path separator and get the last part (the filename)
+		const parts = filePath.split('\\');
+		const fileName = parts[parts.length - 1];
+
+		// Split the filename by the dot and get the last part (the file extension)
+		const fileNameParts = fileName.split('.');
+		return fileNameParts[fileNameParts.length - 1];
+	}
+
+	function getImagePath(fileExtension: string): string {
+		switch (fileExtension) {
+			case 'css':
+				return css;
+			case 'dll':
+				return dll;
+			case 'dmg':
+				return dmg;
+			case 'doc':
+				return doc;
+			case 'docx':
+				return doc;
+			case 'exe':
+				return exe;
+			case 'gif':
+				return gif;
+			case 'html':
+				return html;
+			case 'iso':
+				return iso;
+			case 'jpg':
+				return jpg;
+			case 'jpeg':
+				return jpg;
+			case 'js':
+				return js;
+			case 'json':
+				return json;
+			case 'mp3':
+				return mp3;
+			case 'mp4':
+				return mp4;
+			case 'mpg':
+				return mpg;
+			case 'msi':
+				return msi;
+			case 'pdf':
+				return pdf;
+			case 'png':
+				return png;
+			case 'ppt':
+				return ppt;
+			case 'pptx':
+				return ppt;
+			case 'sql':
+				return sql;
+			case 'svg':
+				return svg;
+			case 'txt':
+				return txt;
+			case 'zip':
+				return zip;
+			default:
+				return file;
+		}
+	}
 
 	function formatBytes(bytes: number, decimals: number = 2): string {
 		if (bytes === 0) return '0 Bytes';
@@ -827,13 +897,13 @@ function App(): JSX.Element {
 		};
 	}, [downloadsVisibility]);
 
-	// const clearDownloads = (): void => {
-	// 	ipcRenderer.send('CLEAR_DOWNLOADS');
-	// };
+	const clearDownloads = (): void => {
+		ipcRenderer.send('CLEAR_DOWNLOADS');
+	};
 
-	// const removeDownload = (id): void => {
-	// 	ipcRenderer.send('REMOVE_DOWNLOAD', id);
-	// };
+	const removeDownload = (id): void => {
+		ipcRenderer.send('REMOVE_DOWNLOAD', id);
+	};
 
 	useEffect(() => {
 		ipcRenderer.on('new-tab', () => {
@@ -900,6 +970,9 @@ function App(): JSX.Element {
 		});
 		ipcRenderer.on('open-themes-page', () => {
 			openCobaltPage('Themes', 'cobalt://themes');
+		});
+		ipcRenderer.on('open-downloads-page', () => {
+			openCobaltPage('Downloads', 'cobalt://downloads');
 		});
 		ipcRenderer.on('close-active-tab', () => {
 			closeTab(activeTab);
@@ -990,35 +1063,35 @@ function App(): JSX.Element {
 				webview.addEventListener('did-finish-load', updateTabInfo);
 				webview.addEventListener('did-start-navigation', handleAboutToNavigate);
 				webview.addEventListener('page-title-updated', updateTabInfo);
-				webview.addEventListener('dom-ready', () => {
-					webview.insertCSS(`
-						::-webkit-scrollbar {
-							width: 15px;
-							height: 10px;
-						}
-						::-webkit-scrollbar-track {
-							background-color: rgb(32, 40, 48);
-						}
-						::-webkit-scrollbar-track-piece {
-							background-color: rgb(18, 22, 26);
-						}
-						::-webkit-scrollbar-thumb {
-							height: 5%;
-							width: 5px;
-							background-color: rgb(32, 40, 48);
-							background-color: #cdd6f4;
-							border: 1px rgb(18, 22, 26) solid;
-						}
-						::-webkit-scrollbar-thumb:hover {
-							opacity: 0.2;
-							background-color: #b4befe;
-						}
+				// webview.addEventListener('dom-ready', () => {
+				// 	webview.insertCSS(`
+				// 		::-webkit-scrollbar {
+				// 			width: 15px;
+				// 			height: 10px;
+				// 		}
+				// 		::-webkit-scrollbar-track {
+				// 			background-color: rgb(32, 40, 48);
+				// 		}
+				// 		::-webkit-scrollbar-track-piece {
+				// 			background-color: rgb(18, 22, 26);
+				// 		}
+				// 		::-webkit-scrollbar-thumb {
+				// 			height: 5%;
+				// 			width: 5px;
+				// 			background-color: rgb(32, 40, 48);
+				// 			background-color: #cdd6f4;
+				// 			border: 1px rgb(18, 22, 26) solid;
+				// 		}
+				// 		::-webkit-scrollbar-thumb:hover {
+				// 			opacity: 0.2;
+				// 			background-color: #b4befe;
+				// 		}
 
-						::-webkit-scrollbar-corner {
-							background-color: rgb(32, 40, 48);
-						}
-					`);
-				});
+				// 		::-webkit-scrollbar-corner {
+				// 			background-color: rgb(32, 40, 48);
+				// 		}
+				// 	`);
+				// });
 			}
 		});
 
@@ -1434,7 +1507,13 @@ function App(): JSX.Element {
 						{downloads.map((download) => (
 							<div key={download.id} className="download-item">
 								<div className="download-info">
-									<h3>{download.filename}</h3>
+									<h3>
+										<img
+											src={getImagePath(getFileExtension(download.savePath))}
+											alt=""
+										/>
+										{download.filename}
+									</h3>
 									<p>
 										<span>
 											{formatBytesOverBytes(
@@ -1527,6 +1606,71 @@ function App(): JSX.Element {
 						</ul>
 						<button onClick={clearHistory} className="clear-history">
 							Clear History
+						</button>
+					</div>
+				)}
+				{tabs[activeTabIndex]?.url === 'cobalt://downloads' && (
+					<div className="downloads-page">
+						<h1>Downloads</h1>
+						<ul className="downloads-list">
+							{downloads.map((download, index) => (
+								<li key={index} className="download-page-item">
+									<h1>
+										<img
+											src={getImagePath(getFileExtension(download.savePath))}
+											alt="Download Image"
+										/>
+										{download.filename}
+									</h1>
+									<a
+										href={download.url}
+										onClick={(e) => {
+											e.preventDefault();
+											const updatedTabs = tabs.map((tab) =>
+												tab.id === activeTab
+													? { ...tab, url: download.url }
+													: tab
+											);
+											setTabs(updatedTabs);
+										}}
+									>
+										{download.url}
+									</a>
+									<span className="history-timestamp">
+										<button
+											className="remove-download-item-btn"
+											onClick={() => {
+												removeDownload(download.id);
+											}}
+										>
+											<svg
+												xmlns="http://www.w3.org/2000/svg"
+												viewBox="0 0 448 512"
+											>
+												<path d="M64 32C28.7 32 0 60.7 0 96L0 416c0 35.3 28.7 64 64 64l320 0c35.3 0 64-28.7 64-64l0-320c0-35.3-28.7-64-64-64L64 32zm79 143c9.4-9.4 24.6-9.4 33.9 0l47 47 47-47c9.4-9.4 24.6-9.4 33.9 0s9.4 24.6 0 33.9l-47 47 47 47c9.4 9.4 9.4 24.6 0 33.9s-24.6 9.4-33.9 0l-47-47-47 47c-9.4 9.4-24.6 9.4-33.9 0s-9.4-24.6 0-33.9l47-47-47-47c-9.4-9.4-9.4-24.6 0-33.9z" />
+											</svg>
+										</button>
+										<button
+											className="remove-download-item-btn"
+											onClick={() => {
+												handleOpenFolder(
+													getDirectoryPath(download.savePath)
+												);
+											}}
+										>
+											<svg
+												xmlns="http://www.w3.org/2000/svg"
+												viewBox="0 0 512 512"
+											>
+												<path d="M64 480H448c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H288c-10.1 0-19.6-4.7-25.6-12.8L243.2 57.6C231.1 41.5 212.1 32 192 32H64C28.7 32 0 60.7 0 96V416c0 35.3 28.7 64 64 64z" />
+											</svg>
+										</button>
+									</span>
+								</li>
+							))}
+						</ul>
+						<button onClick={clearDownloads} className="clear-history">
+							Clear Downloads
 						</button>
 					</div>
 				)}
