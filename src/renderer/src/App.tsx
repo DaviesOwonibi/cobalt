@@ -25,12 +25,21 @@ function App(): JSX.Element {
 	const [idCounter, setIdCounter] = useState(1);
 	const [tabs, setTabs] = useState<Tab[]>([{ name: 'New Tab', url: '', id: 0, key: `tab-0` }]);
 	const [activeTab, setActiveTab] = useState<number>(0);
-	const [searchInput, setSearchInput] = useState('');
-	const [homeSearchInput, setHomeSearchInput] = useState('');
+	const [isDragging, setIsDragging] = useState(false);
+	const [draggedTab, setDraggedTab] = useState<number | null>(null);
+	const [draggedOverTab, setDraggedOverTab] = useState<number | null>(null);
 	const searchInputRef = useRef<HTMLInputElement>(null);
+	const [searchInput, setSearchInput] = useState('');
+	const [isFocused, setIsFocused] = useState(false);
+	const [showRecommendations, setShowRecommendations] = useState(false);
+	const searchRecommendationRef = useRef<HTMLUListElement>(null);
+	const searchFormRef = useRef<HTMLFormElement>(null);
+	const [shouldSelect, setShoudlSelect] = useState(false);
+	const [homeSearchInput, setHomeSearchInput] = useState('');
 	const webviewRefs = useRef<{ [key: string]: WebviewTag }>({});
 	const [canGoBack, setCanGoBack] = useState(false);
 	const [canGoForward, setCanGoForward] = useState(false);
+	const [recommendations, setRecommendations] = useState([]);
 	const [history, setHistory] = useState<{
 		sites: string[];
 		timestamps: number[];
@@ -68,13 +77,13 @@ function App(): JSX.Element {
 			name: 'One Dark Pro',
 			colors: {
 				textColor: '#abb2bf',
-				accentColor: '#61afef',
-				lighterAccentColor: '#56b6c2',
+				accentColor: '#98c379',
+				lighterAccentColor: '#b6e197',
 				disabledColor: '#5c6370',
 				backgroundColor: '#282c34',
 				scrollbarTrackColor: '#21252b',
 				scrollbarTrackPieceColor: '#1e2227',
-				tabBackgroundColor: '#21252b',
+				tabBackgroundColor: '#1d1e21',
 				tabHoverColor: '#323842',
 				pageBtnHoverColor: '#2c313a',
 				activeTabColor: '#3a3f4b',
@@ -93,14 +102,14 @@ function App(): JSX.Element {
 				lighterAccentColor: '#79c0ff',
 				disabledColor: '#6e7681',
 				backgroundColor: '#0d1117',
-				scrollbarTrackColor: '#161b22',
-				scrollbarTrackPieceColor: '#0d1117',
-				tabBackgroundColor: '#161b22',
+				scrollbarTrackColor: '#23272d',
+				scrollbarTrackPieceColor: '#23272d',
+				tabBackgroundColor: '#1e2228',
 				tabHoverColor: '#1f2428',
 				pageBtnHoverColor: '#1f2428',
-				activeTabColor: '#1f6feb',
+				activeTabColor: '#1f252f',
 				searchBarBackground: '#161b22',
-				settingsMenuBackground: '#161b22',
+				settingsMenuBackground: '#191c21',
 				settingsMenuHoverBackground: '#1f2428',
 				historyLinkColor: '#58a6ff',
 				historyTimestampColor: '#8b949e'
@@ -111,41 +120,20 @@ function App(): JSX.Element {
 			colors: {
 				textColor: '#a9b1d6',
 				accentColor: '#7aa2f7',
-				lighterAccentColor: '#2ac3de',
+				lighterAccentColor: '#8daef6',
 				disabledColor: '#565f89',
-				backgroundColor: '#1a1b26',
+				backgroundColor: '#1E1C29',
 				scrollbarTrackColor: '#16161e',
 				scrollbarTrackPieceColor: '#101014',
-				tabBackgroundColor: '#16161e',
+				tabBackgroundColor: '#24252E',
 				tabHoverColor: '#1f2335',
 				pageBtnHoverColor: '#1f2335',
 				activeTabColor: '#3b4261',
-				searchBarBackground: '#16161e',
+				searchBarBackground: '#111115',
 				settingsMenuBackground: '#16161e',
 				settingsMenuHoverBackground: '#1f2335',
-				historyLinkColor: '#9ece6a',
+				historyLinkColor: '#8daef6',
 				historyTimestampColor: '#565f89'
-			}
-		},
-		{
-			name: 'Andromeda',
-			colors: {
-				textColor: '#d5ced9',
-				accentColor: '#23b0ff',
-				lighterAccentColor: '#00e8c6',
-				disabledColor: '#5f5c6d',
-				backgroundColor: '#23262e',
-				scrollbarTrackColor: '#1c1e26',
-				scrollbarTrackPieceColor: '#181a21',
-				tabBackgroundColor: '#2b2e3b',
-				tabHoverColor: '#3e4251',
-				pageBtnHoverColor: '#3e4251',
-				activeTabColor: '#3e4251',
-				searchBarBackground: '#1c1e26',
-				settingsMenuBackground: '#1c1e26',
-				settingsMenuHoverBackground: '#2b2e3b',
-				historyLinkColor: '#ff5370',
-				historyTimestampColor: '#5f5c6d'
 			}
 		},
 		{
@@ -362,6 +350,11 @@ function App(): JSX.Element {
 		});
 	}
 
+	function removeHistoryItem(site: string): void {
+		ipcRenderer.send('REMOVE_HISTORY_ITEM', site);
+		fetchHistory();
+	}
+
 	const clearHistory = async (): Promise<void> => {
 		try {
 			await ipcRenderer.invoke('CLEAR_HISTORY');
@@ -378,19 +371,6 @@ function App(): JSX.Element {
 	};
 
 	// Themes Page
-
-	// const fetchActiveTheme = async (): Promise<void> => {
-	// 	const result = await ipcRenderer.invoke('GET_ACTIVE_THEME');
-	// 	const themeOfThis = themes.find((theme) => theme.name === result);
-	// 	console.log(result, themeOfThis);
-	// 	console.log(themes);
-	// 	if (themeOfThis) {
-	// 		setActiveTheme(themeOfThis);
-	// 		applyTheme(themeOfThis);
-	// 	} else if (!themeOfThis) {
-	// 		setActiveTheme(themes[themes.length - 1]);
-	// 	}
-	// };
 
 	const fetchThemes = async (): Promise<void> => {
 		const result = await ipcRenderer.invoke('GET_THEMES');
@@ -490,6 +470,7 @@ function App(): JSX.Element {
 
 	function handleSearchChange(event: React.ChangeEvent<HTMLInputElement>): void {
 		setSearchInput(event.target.value);
+		setShowRecommendations(true);
 	}
 
 	function handleHomeSearchChange(event: React.ChangeEvent<HTMLInputElement>): void {
@@ -537,6 +518,18 @@ function App(): JSX.Element {
 				addToHistory(newUrl, title);
 			}
 		}
+	}
+
+	async function handleSearchSuggestion(suggestion: string): Promise<void> {
+		const newUrl: string = `https://www.google.com/search?q=${encodeURIComponent(suggestion)}`;
+		const updatedTabs = tabs.map((tab) =>
+			tab.id === activeTab ? { ...tab, url: newUrl } : tab
+		);
+		setTabs(updatedTabs);
+		tabs[activeTabIndex].url = newUrl;
+		setSearchInput(tabs[activeTabIndex].url);
+		const title = await getTitle(newUrl);
+		addToHistory(newUrl, title);
 	}
 
 	async function handleHomeSearchSubmit(event: React.FormEvent<HTMLFormElement>): Promise<void> {
@@ -637,7 +630,51 @@ function App(): JSX.Element {
 			.trim();
 	}
 
+	const fetchRecommendations = async (): Promise<void> => {
+		if (searchInput) {
+			try {
+				const googleSuggestUrl = `https://suggestqueries.google.com/complete/search?client=chrome&q=${encodeURIComponent(searchInput)}`;
+				const allOriginsUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(googleSuggestUrl)}`;
+				const response = await fetch(allOriginsUrl);
+
+				if (response.ok) {
+					const result = await response.json();
+					const data = JSON.parse(result.contents);
+					setRecommendations(data[1]);
+				} else {
+					setRecommendations([]);
+				}
+			} catch (error) {
+				console.error('Error fetching recommendations:', error);
+				setRecommendations([]);
+			}
+		} else {
+			setRecommendations([]);
+		}
+	};
+
 	// UseEffects
+
+	useEffect(() => {
+		const adjustUlWidth = (): void => {
+			if (searchFormRef.current && searchRecommendationRef.current) {
+				searchRecommendationRef.current.style.width = `${searchFormRef.current.offsetWidth}px`;
+			}
+		};
+
+		// Adjust width on window resize
+		window.addEventListener('resize', adjustUlWidth);
+		adjustUlWidth();
+
+		const delayDebounceFn = setTimeout(() => {
+			fetchRecommendations();
+		}, 300); // Delay the API call to avoid too many requests
+
+		return (): void => {
+			clearTimeout(delayDebounceFn);
+			window.removeEventListener('resize', adjustUlWidth);
+		};
+	}, [searchInput]);
 
 	useEffect(() => {
 		const handleWindowControls = (): void => {
@@ -760,6 +797,9 @@ function App(): JSX.Element {
 		};
 		ipcRenderer.on('new-history-tab', () => {
 			openCobaltPage('History', 'cobalt://history');
+		});
+		ipcRenderer.on('open-themes-page', () => {
+			openCobaltPage('Themes', 'cobalt://themes');
 		});
 		ipcRenderer.on('close-active-tab', () => {
 			closeTab(activeTab);
@@ -975,6 +1015,16 @@ function App(): JSX.Element {
 				!settingsMenuRef.current.contains(event.target)
 			) {
 				setSettingsVisibility(false);
+			} else if (searchInputRef.current && !searchInputRef.current.contains(event.target)) {
+				setIsFocused(false);
+			}
+			if (
+				searchRecommendationRef.current &&
+				searchFormRef.current &&
+				!searchRecommendationRef.current.contains(event.target) &&
+				!searchFormRef.current.contains(event.target)
+			) {
+				setShowRecommendations(false);
 			}
 		};
 
@@ -982,19 +1032,89 @@ function App(): JSX.Element {
 		return (): void => {
 			document.removeEventListener('mousedown', handleClickOutside);
 		};
-	}, [showThemeForm, settingsVisibility]);
+	}, [showThemeForm, settingsVisibility, showRecommendations]);
+
+	const handleInputMouseDown = (e): void => {
+		if (!isFocused) {
+			e.preventDefault();
+			setShoudlSelect(true);
+		}
+	};
+
+	const handleInputClick = (): void => {
+		if (shouldSelect && searchInputRef.current) {
+			searchInputRef.current.select();
+			setShoudlSelect(false);
+		}
+		setIsFocused(true);
+	};
+
+	const handleInputFocus = (): void => {
+		setIsFocused(true);
+	};
+
+	const handleInputBlur = (): void => {
+		setIsFocused(false);
+	};
+
+	const handleDragStart = (e: React.DragEvent<HTMLDivElement>, index: number): void => {
+		setIsDragging(true);
+		setDraggedTab(index);
+		e.dataTransfer.setData('text/plain', index.toString());
+	};
+
+	const handleDragOver = (e: React.DragEvent<HTMLDivElement>): void => {
+		e.preventDefault();
+	};
+
+	const handleDragEnter = (index: number): void => {
+		setDraggedOverTab(index);
+	};
+
+	const handleDragLeave = (): void => {
+		setDraggedOverTab(null);
+	};
+
+	const handleDragEnd = (): void => {
+		setIsDragging(false);
+		setDraggedTab(null);
+		setDraggedOverTab(null);
+	};
+
+	const handleDrop = (e: React.DragEvent<HTMLDivElement>, dropIndex: number): void => {
+		e.preventDefault();
+		const dragIndex = parseInt(e.dataTransfer.getData('text/plain'), 10);
+		if (dragIndex === dropIndex) return;
+
+		const newTabs = [...tabs];
+		const [reorderedItem] = newTabs.splice(dragIndex, 1);
+		newTabs.splice(dropIndex, 0, reorderedItem);
+
+		setTabs(newTabs);
+		setIsDragging(false);
+		setDraggedTab(null);
+		setDraggedOverTab(null);
+	};
 
 	return (
 		<>
 			<div className="frame">
 				<div id="drag-region">
 					<div className="tabs" draggable={false}>
-						{tabs.map((tab) => (
+						{tabs.map((tab, index) => (
 							<div
 								key={tab.id}
 								onClick={() => setActivePage(tab.id)}
-								className={`tab ${activeTab === tab.id ? 'active' : ''}`}
-								draggable={false}
+								className={`tab ${activeTab === tab.id ? 'active' : ''} ${
+									isDragging && draggedTab === index ? 'dragging' : ''
+								} ${draggedOverTab === index ? 'drag-over' : ''}`}
+								draggable={true}
+								onDragStart={(e) => handleDragStart(e, index)}
+								onDragOver={(e) => handleDragOver(e)}
+								onDragEnter={() => handleDragEnter(index)}
+								onDragLeave={() => handleDragLeave()}
+								onDragEnd={() => handleDragEnd()}
+								onDrop={(e) => handleDrop(e, index)}
 							>
 								<span className="tabName">{tab.name}</span>
 								<button onClick={() => closeTab(tab.id)} className="close-tab">
@@ -1084,29 +1204,54 @@ function App(): JSX.Element {
 						</svg>
 					</button>
 				</div>
-				<form onSubmit={handleSearchSubmit} className="searchForm">
-					<label htmlFor="search-input">
-						<span className="searchIcon">
-							<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-								<path
-									fill="#cdd6f4"
-									d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352a144 144 0 1 0 0-288 144 144 0 1 0 0 288z"
-								/>
-							</svg>
-						</span>
-						<input
-							id="search-input"
-							type="text"
-							value={searchInput}
-							onChange={handleSearchChange}
-							aria-placeholder="Search Google or enter address"
-							placeholder="Search Google or enter address"
-							spellCheck="false"
-							ref={searchInputRef}
-							autoFocus
-						/>
-					</label>
-				</form>
+				<div className="search-container">
+					<form onSubmit={handleSearchSubmit} className="searchForm" ref={searchFormRef}>
+						<label htmlFor="search-input">
+							<span className="searchIcon">
+								<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+									<path
+										fill="#cdd6f4"
+										d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352a144 144 0 1 0 0-288 144 144 0 1 0 0 288z"
+									/>
+								</svg>
+							</span>
+							<input
+								id="search-input"
+								type="text"
+								value={searchInput}
+								onChange={handleSearchChange}
+								aria-placeholder="Search Google or enter address"
+								placeholder="Search Google or enter address"
+								spellCheck="false"
+								ref={searchInputRef}
+								onMouseDown={handleInputMouseDown}
+								onClick={handleInputClick}
+								onFocus={handleInputFocus}
+								onBlur={handleInputBlur}
+								autoFocus
+								autoComplete="nope"
+							/>
+						</label>
+					</form>
+					{showRecommendations ? (
+						<ul className="search-recommendations" ref={searchRecommendationRef}>
+							{recommendations.map((recommendation, index) => (
+								<li key={index} className="search-recommendation">
+									<button
+										className="recommendation-btn"
+										onClick={() => {
+											handleSearchSuggestion(recommendation);
+										}}
+									>
+										{recommendation}
+									</button>
+								</li>
+							))}
+						</ul>
+					) : (
+						<></>
+					)}
+				</div>
 				<div className="pageBtns">
 					<button className="pageBtn">
 						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
@@ -1215,6 +1360,14 @@ function App(): JSX.Element {
 									</a>
 									<span className="history-timestamp">
 										{parseLocaleString(new Date(history.timestamps[index]))}
+										<button
+											className="remove-history-item-btn"
+											onClick={() => {
+												removeHistoryItem(site);
+											}}
+										>
+											Remove Entry
+										</button>
 									</span>
 								</li>
 							))}
@@ -1230,7 +1383,21 @@ function App(): JSX.Element {
 						<ul className="themes-list">
 							{themes.map((theme, index) => (
 								<li key={index} className="theme-item">
-									<h1>{theme.name}</h1>
+									<h1>
+										{theme.name}
+										{activeTheme.name === theme.name ? (
+											<svg
+												xmlns="http://www.w3.org/2000/svg"
+												viewBox="0 0 448 512"
+												fill=""
+												className="checkmark"
+											>
+												<path d="M438.6 105.4c12.5 12.5 12.5 32.8 0 45.3l-256 256c-12.5 12.5-32.8 12.5-45.3 0l-128-128c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0L160 338.7 393.4 105.4c12.5-12.5 32.8-12.5 45.3 0z" />
+											</svg>
+										) : (
+											<></>
+										)}
+									</h1>
 									<div className="color-preview">
 										{Object.entries(theme.colors).map(
 											([colorName, colorValue]) => (

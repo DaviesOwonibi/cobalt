@@ -69,18 +69,18 @@ const themeStore = new Store({
 				name: 'One Dark Pro',
 				colors: {
 					textColor: '#abb2bf',
-					accentColor: '#61afef',
-					lighterAccentColor: '#56b6c2',
+					accentColor: '#98c379',
+					lighterAccentColor: '#b6e197',
 					disabledColor: '#5c6370',
 					backgroundColor: '#282c34',
-					scrollbarTrackColor: '#21252b',
-					scrollbarTrackPieceColor: '#1e2227',
-					tabBackgroundColor: '#21252b',
+					scrollbarTrackColor: '#23272d',
+					scrollbarTrackPieceColor: '#23272d',
+					tabBackgroundColor: '#1e2228',
 					tabHoverColor: '#323842',
 					pageBtnHoverColor: '#2c313a',
-					activeTabColor: '#3a3f4b',
+					activeTabColor: '#1f252f',
 					searchBarBackground: '#21252b',
-					settingsMenuBackground: '#282c34',
+					settingsMenuBackground: '#191c21',
 					settingsMenuHoverBackground: '#2c313a',
 					historyLinkColor: '#98c379',
 					historyTimestampColor: '#5c6370'
@@ -112,7 +112,7 @@ const themeStore = new Store({
 				colors: {
 					textColor: '#a9b1d6',
 					accentColor: '#7aa2f7',
-					lighterAccentColor: '#2ac3de',
+					lighterAccentColor: '#8daef6',
 					disabledColor: '#565f89',
 					backgroundColor: '#1a1b26',
 					scrollbarTrackColor: '#16161e',
@@ -121,32 +121,11 @@ const themeStore = new Store({
 					tabHoverColor: '#1f2335',
 					pageBtnHoverColor: '#1f2335',
 					activeTabColor: '#3b4261',
-					searchBarBackground: '#16161e',
+					searchBarBackground: '#111115',
 					settingsMenuBackground: '#16161e',
 					settingsMenuHoverBackground: '#1f2335',
-					historyLinkColor: '#9ece6a',
+					historyLinkColor: '#8daef6',
 					historyTimestampColor: '#565f89'
-				}
-			},
-			{
-				name: 'Andromeda',
-				colors: {
-					textColor: '#d5ced9',
-					accentColor: '#23b0ff',
-					lighterAccentColor: '#00e8c6',
-					disabledColor: '#5f5c6d',
-					backgroundColor: '#23262e',
-					scrollbarTrackColor: '#1c1e26',
-					scrollbarTrackPieceColor: '#181a21',
-					tabBackgroundColor: '#2b2e3b',
-					tabHoverColor: '#3e4251',
-					pageBtnHoverColor: '#3e4251',
-					activeTabColor: '#3e4251',
-					searchBarBackground: '#1c1e26',
-					settingsMenuBackground: '#1c1e26',
-					settingsMenuHoverBackground: '#2b2e3b',
-					historyLinkColor: '#ff5370',
-					historyTimestampColor: '#5f5c6d'
 				}
 			},
 			{
@@ -343,6 +322,23 @@ function createWindow(x: number, y: number, width: number, height: number): void
 		}
 	);
 
+	ipcMain.on('REMOVE_HISTORY_ITEM', (_event, site) => {
+		const sites = historyStore.get('sites') as string[];
+		const timestamps = historyStore.get('timestamps') as number[];
+		const titles = historyStore.get('titles') as string[];
+
+		const siteIndex = sites.findIndex((s) => s === site);
+		if (siteIndex !== -1) {
+			const filteredSites = sites.filter((_, index) => index !== siteIndex);
+			const filteredTimestamps = timestamps.filter((_, index) => index !== siteIndex);
+			const filteredTitles = titles.filter((_, index) => index !== siteIndex);
+
+			historyStore.set('sites', filteredSites);
+			historyStore.set('timestamps', filteredTimestamps);
+			historyStore.set('titles', filteredTitles);
+		}
+	});
+
 	ipcMain.handle('CLEAR_HISTORY', () => {
 		try {
 			historyStore.clearAll();
@@ -394,7 +390,6 @@ function createWindow(x: number, y: number, width: number, height: number): void
 	});
 
 	ipcMain.on('SET_ACTIVE_THEME', (_event, themeName) => {
-		console.log(themeName);
 		try {
 			settingsStore.set('activeTheme', themeName);
 			return { success: true, message: 'Theme added successfully' };
@@ -474,6 +469,11 @@ function createWindow(x: number, y: number, width: number, height: number): void
 
 		globalShortcut.register('CmdOrCtrl+Shift+T', () => {
 			mainWindow.webContents.send('open-last-tab');
+			return false;
+		});
+
+		globalShortcut.register('CmdOrCtrl+Y', () => {
+			mainWindow.webContents.send('open-themes-page');
 			return false;
 		});
 

@@ -3,6 +3,11 @@
 	src: url('../assets/fonts/futura.ttf') format('truetype');
 }
 
+@font-face {
+	font-family: 'Raleway';
+	src: url('../assets/fonts/Raleway.ttf') format('truetype');
+}
+
 :root {
 	--ev-c-white: #ffffff;
 	--ev-c-white-soft: #f8f8f8;
@@ -53,7 +58,7 @@ body {
 	color: var(--color-text);
 	/* background: var(--color-background); */
 	line-height: 1.6;
-	font-family: 'Futura';
+	font-family: 'Raleway';
 	text-rendering: optimizeLegibility;
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;

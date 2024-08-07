@@ -48,14 +48,16 @@ body {
 	overflow: hidden;
 	background-size: cover;
 	color: var(--textColor);
-	font-family: 'Futura';
+	font-weight: bold;
+	font-family: 'Raleway';
 }
 
 button,
 input {
 	outline: none;
 	border: none;
-	font-family: 'Futura';
+	font-weight: bold;
+	font-family: 'Raleway';
 }
 
 button {
@@ -125,6 +127,14 @@ button {
 
 .tab:active {
 	transform: scale(0.98);
+}
+
+.tab.dragging {
+	opacity: 0.5;
+}
+
+.tab.drag-over {
+	border-left: 2px solid #cdd6f4;
 }
 
 .active {
@@ -307,6 +317,40 @@ input::placeholder {
 	gap: 18vw;
 	align-items: center;
 }
+.search-container {
+	position: relative;
+	width: 100%;
+}
+.search-recommendations {
+	position: absolute;
+	top: 50px;
+	left: 0;
+	background-color: var(--searchBarBackground);
+	border-bottom-left-radius: 10px;
+	border-bottom-right-radius: 10px;
+	max-height: 200px;
+	overflow-y: auto;
+	z-index: 1000;
+	box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+	padding: 0;
+}
+
+.search-recommendation {
+	height: 100%;
+	padding: 0;
+}
+
+.search-recommendation:hover {
+	background-color: var(--settingsMenuBackground);
+}
+
+.recommendation-btn {
+	width: 100%;
+	height: 100%;
+	color: var(--textColor);
+	background: none;
+	text-align: left;
+}
 
 .pageBtns {
 	display: flex;
@@ -358,7 +402,7 @@ input::placeholder {
 	transform: scale(0.9);
 }
 .searchForm {
-	width: 60%;
+	width: 100%;
 }
 
 .searchBarSection label {
@@ -537,6 +581,25 @@ input::placeholder {
 	font-size: 0.9em;
 }
 
+.remove-history-item-btn {
+	background-color: var(--disabledColor);
+	border-radius: 3px;
+	color: var(--textColor);
+	font-size: 13px;
+	margin-left: 10px;
+	padding: 5px;
+}
+
+.remove-history-item-btn:hover {
+	transition: ease-in-out 0.2s;
+	transform: scale(1.05);
+	text-shadow: rgba(205, 214, 244, 0.47) 0px 0px 6px;
+}
+
+.remove-history-item-btn:active {
+	transform: scale(0.9);
+}
+
 .clear-history {
 	position: absolute;
 	bottom: 10px;
@@ -588,6 +651,19 @@ input::placeholder {
 	li:not(:first-child) {
 		margin-top: 50px;
 	}
+
+	li {
+		h1 {
+			display: flex;
+			vertical-align: middle;
+		}
+	}
+}
+
+.checkmark {
+	margin-left: 20px;
+	fill: var(--accentColor);
+	width: 30px;
 }
 
 .selectTheme {
