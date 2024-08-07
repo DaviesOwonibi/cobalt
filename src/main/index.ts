@@ -9,16 +9,27 @@ import {
 	Menu,
 	MenuItemConstructorOptions
 } from 'electron';
-import { join } from 'path';
+import { basename, extname, join } from 'path';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import { ElectronBlocker } from '@cliqz/adblocker-electron';
 import fetch from 'cross-fetch';
 import icon from '../../resources/icon.png?asset';
 import Store from '../preload/store';
+import { existsSync } from 'fs';
 
 ElectronBlocker.fromPrebuiltAdsAndTracking(fetch).then((blocker) => {
 	blocker.enableBlockingInSession(session.defaultSession);
 });
+
+interface Download {
+	id: number;
+	filename: string;
+	url: string;
+	state: string;
+	receivedBytes: number;
+	totalBytes: number;
+	savePath: string;
+}
 
 Menu.setApplicationMenu(null);
 
@@ -153,6 +164,13 @@ const themeStore = new Store({
 	}
 });
 
+const downloadsStore = new Store({
+	configName: 'downloads',
+	defaults: {
+		downloads: []
+	}
+});
+
 function createWindow(x: number, y: number, width: number, height: number): void {
 	const mainWindow = new BrowserWindow({
 		x,
@@ -175,38 +193,87 @@ function createWindow(x: number, y: number, width: number, height: number): void
 	});
 
 	mainWindow.setMenu(null);
-	// mainWindow.webContents.openDevTools();
-	mainWindow.webContents.session.on('will-download', (_event, item, _webContents) => {
-		const savePath = app.getPath('downloads') + '\\' + item.getFilename();
-		const receivedBytes = item.getReceivedBytes();
-		const totalBytes = item.getTotalBytes();
+	mainWindow.webContents.openDevTools();
 
-		// Set the save path, making Electron not to prompt a save dialog.
-		item.setSavePath(savePath);
+	downloadsStore.set('downloads', []);
+	mainWindow.webContents.send('downloads-cleared');
+
+	mainWindow.webContents.session.on('will-download', (_event, item, _webContents) => {
+		const getUniqueFilePath = (basePath, fileName): string => {
+			let newPath = join(basePath, fileName);
+			let counter = 1;
+			const ext = extname(fileName);
+			const nameWithoutExt = basename(fileName, ext);
+
+			while (existsSync(newPath)) {
+				newPath = join(basePath, `${nameWithoutExt} (${counter})${ext}`);
+				counter++;
+			}
+
+			return newPath;
+		};
+
+		const baseSavePath = app.getPath('downloads');
+		const originalFilename = item.getFilename();
+		const uniqueSavePath = getUniqueFilePath(baseSavePath, originalFilename);
+		const uniqueFilename = basename(uniqueSavePath);
+
+		const downloadItem = {
+			id: Date.now(),
+			filename: uniqueFilename,
+			url: item.getURL(),
+			state: 'started',
+			receivedBytes: 0,
+			totalBytes: item.getTotalBytes(),
+			savePath: uniqueSavePath
+		};
+
+		// Add to downloads store
+		const downloads = downloadsStore.get('downloads') as unknown[];
+		downloads.unshift(downloadItem);
+		downloadsStore.set('downloads', downloads);
+
+		// Send to frontend
+		mainWindow.webContents.send('download-started', downloadItem);
+
+		item.setSavePath(downloadItem.savePath);
 
 		item.on('updated', (_event, state) => {
-			if (state === 'interrupted') {
-				console.log('Download is interrupted but can be resumed');
-			} else if (state === 'progressing') {
-				const partDone = receivedBytes / totalBytes;
-				if (item.isPaused()) {
-					console.log('Download is paused');
-				} else {
-					mainWindow.webContents.send('download-progress', [
-						receivedBytes,
-						totalBytes,
-						partDone
-					]);
-					console.log(`Received bytes: ${item.getReceivedBytes()}`);
-				}
+			const updatedItem = {
+				...downloadItem,
+				state: state,
+				receivedBytes: item.getReceivedBytes()
+			};
+
+			// Update store
+			const downloads = downloadsStore.get('downloads') as Download[];
+			const index = downloads.findIndex((d) => d.id === downloadItem.id);
+			if (index !== -1) {
+				downloads[index] = updatedItem;
+				downloadsStore.set('downloads', downloads);
 			}
+
+			// Send to frontend
+			mainWindow.webContents.send('download-updated', updatedItem);
 		});
+
 		item.once('done', (_event, state) => {
-			if (state === 'completed') {
-				console.log('Download successfully');
-			} else {
-				console.log(`Download failed: ${state}`);
+			const finalItem = {
+				...downloadItem,
+				state: state,
+				receivedBytes: item.getReceivedBytes()
+			};
+
+			// Update store
+			const downloads = downloadsStore.get('downloads') as Download[];
+			const index = downloads.findIndex((d) => d.id === downloadItem.id);
+			if (index !== -1) {
+				downloads[index] = finalItem;
+				downloadsStore.set('downloads', downloads);
 			}
+
+			// Send to frontend
+			mainWindow.webContents.send('download-completed', finalItem);
 		});
 	});
 
@@ -270,6 +337,26 @@ function createWindow(x: number, y: number, width: number, height: number): void
 	});
 
 	ipcMain.setMaxListeners(200000000);
+
+	ipcMain.handle('GET_DOWNLOADS', () => {
+		return downloadsStore.get('downloads');
+	});
+
+	ipcMain.handle('OPEN_FOLDER', (_event, folderPath) => {
+		shell.openPath(folderPath);
+	});
+
+	ipcMain.on('CLEAR_DOWNLOADS', () => {
+		downloadsStore.set('downloads', []);
+		mainWindow.webContents.send('downloads-cleared');
+	});
+
+	ipcMain.on('REMOVE_DOWNLOAD', (event, downloadId) => {
+		const downloads = downloadsStore.get('downloads') as Download[];
+		const updatedDownloads = downloads.filter((d) => d.id !== downloadId);
+		downloadsStore.set('downloads', updatedDownloads);
+		event.reply('download-removed', downloadId);
+	});
 
 	const MAX_HISTORY_ENTRIES = 1000;
 	const TIME_THRESHOLD = 20000;

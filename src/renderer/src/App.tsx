@@ -21,6 +21,16 @@ interface Theme {
 	colors: Record<string, string>;
 }
 
+interface Download {
+	id: number;
+	filename: string;
+	url: string;
+	state: string;
+	receivedBytes: number;
+	totalBytes: number;
+	savePath: string;
+}
+
 function App(): JSX.Element {
 	const [idCounter, setIdCounter] = useState(1);
 	const [tabs, setTabs] = useState<Tab[]>([{ name: 'New Tab', url: '', id: 0, key: `tab-0` }]);
@@ -34,7 +44,7 @@ function App(): JSX.Element {
 	const [showRecommendations, setShowRecommendations] = useState(false);
 	const searchRecommendationRef = useRef<HTMLUListElement>(null);
 	const searchFormRef = useRef<HTMLFormElement>(null);
-	const [shouldSelect, setShoudlSelect] = useState(false);
+	const [shouldSelect, setShouldSelect] = useState(false);
 	const [homeSearchInput, setHomeSearchInput] = useState('');
 	const webviewRefs = useRef<{ [key: string]: WebviewTag }>({});
 	const [canGoBack, setCanGoBack] = useState(false);
@@ -49,6 +59,7 @@ function App(): JSX.Element {
 		timestamps: [],
 		titles: []
 	});
+	const [downloads, setDownloads] = useState<Download[]>([]);
 	const [titles, setTitles] = useState({});
 	const [lastTab, setLastTab] = useState<Tab>();
 	const [themes, setThemes] = useState<Theme[]>([
@@ -184,6 +195,10 @@ function App(): JSX.Element {
 	const [settingsVisibility, setSettingsVisibility] = useState(false);
 	const settingsBtnRef = useRef<HTMLButtonElement>(null);
 	const settingsMenuRef = useRef<HTMLDivElement>(null);
+	const [downloadsVisibility, setDownloadsVisibility] = useState(false);
+	const downloadsBtnRef = useRef<HTMLButtonElement>(null);
+	const downloadsMenuRef = useRef<HTMLDivElement>(null);
+
 	const activeTabIndex = tabs.findIndex((tab) => tab.id === activeTab);
 	const ipcRenderer = (window as any).electron.ipcRenderer;
 	const popup = Notification({
@@ -322,6 +337,10 @@ function App(): JSX.Element {
 
 	const showSettings = (): void => {
 		setSettingsVisibility(!settingsVisibility);
+	};
+
+	const showDownloads = (): void => {
+		setDownloadsVisibility(!downloadsVisibility);
 	};
 
 	function settingsMenuAddTab(): void {
@@ -585,6 +604,25 @@ function App(): JSX.Element {
 
 	// Utility functions
 
+	function formatBytes(bytes: number, decimals: number = 2): string {
+		if (bytes === 0) return '0 Bytes';
+
+		const k = 1000;
+		const dm = decimals < 0 ? 0 : decimals;
+		const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+
+		const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+		return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+	}
+
+	function formatBytesOverBytes(input: string): string {
+		const parts = input.split('/');
+		const firstByte = formatBytes(parseInt(parts[0]));
+		const secondByte = formatBytes(parseInt(parts[1]));
+		return firstByte + ' / ' + secondByte;
+	}
+
 	const getTitle = async (url: string): Promise<string> => {
 		try {
 			const response = await fetch(
@@ -734,6 +772,68 @@ function App(): JSX.Element {
 			ipcRenderer?.removeAllListeners('maximized');
 		};
 	}, []);
+
+	const fetchDownloads = async (): Promise<void> => {
+		const result = await ipcRenderer.invoke('GET_DOWNLOADS');
+
+		if (result) {
+			setDownloads(result);
+		}
+	};
+
+	const handleOpenFolder = (path: string): void => {
+		ipcRenderer.invoke('OPEN_FOLDER', path);
+	};
+
+	function getDirectoryPath(fullPath: string): string {
+		// Split the path by backslashes or forward slashes
+		const parts = fullPath.split(/[\\/]/);
+
+		// Remove the last part (the filename)
+		parts.pop();
+
+		// Join the remaining parts back together
+		return parts.join('\\');
+	}
+
+	useEffect(() => {
+		fetchDownloads();
+		ipcRenderer.on('download-started', (_event, download) => {
+			setDownloads((prev) => [download, ...prev]);
+		});
+
+		ipcRenderer.on('download-updated', (_event, updatedDownload: Download) => {
+			setDownloads((prev) =>
+				prev.map((d) => (d.id === updatedDownload.id ? updatedDownload : d))
+			);
+		});
+
+		ipcRenderer.on('download-completed', (_event, completedDownload) => {
+			setDownloads((prev) =>
+				prev.map((d) => (d.id === completedDownload.id ? completedDownload : d))
+			);
+		});
+
+		ipcRenderer.on('downloads-cleared', () => {
+			setDownloads([]);
+		});
+
+		ipcRenderer.on('download-removed', (_event, id) => {
+			setDownloads((prev) => prev.filter((d) => d.id !== id));
+		});
+
+		return (): void => {
+			ipcRenderer.removeAllListeners('new-tab');
+		};
+	}, [downloadsVisibility]);
+
+	// const clearDownloads = (): void => {
+	// 	ipcRenderer.send('CLEAR_DOWNLOADS');
+	// };
+
+	// const removeDownload = (id): void => {
+	// 	ipcRenderer.send('REMOVE_DOWNLOAD', id);
+	// };
 
 	useEffect(() => {
 		ipcRenderer.on('new-tab', () => {
@@ -1015,6 +1115,14 @@ function App(): JSX.Element {
 				!settingsMenuRef.current.contains(event.target)
 			) {
 				setSettingsVisibility(false);
+			} else if (
+				downloadsVisibility &&
+				downloadsBtnRef.current &&
+				downloadsMenuRef.current &&
+				!downloadsBtnRef.current.contains(event.target) &&
+				!downloadsMenuRef.current.contains(event.target)
+			) {
+				setDownloadsVisibility(false);
 			} else if (searchInputRef.current && !searchInputRef.current.contains(event.target)) {
 				setIsFocused(false);
 			}
@@ -1037,14 +1145,14 @@ function App(): JSX.Element {
 	const handleInputMouseDown = (e): void => {
 		if (!isFocused) {
 			e.preventDefault();
-			setShoudlSelect(true);
+			setShouldSelect(true);
 		}
 	};
 
 	const handleInputClick = (): void => {
 		if (shouldSelect && searchInputRef.current) {
 			searchInputRef.current.select();
-			setShoudlSelect(false);
+			setShouldSelect(false);
 		}
 		setIsFocused(true);
 	};
@@ -1253,7 +1361,12 @@ function App(): JSX.Element {
 					)}
 				</div>
 				<div className="pageBtns">
-					<button className="pageBtn">
+					<button
+						className="pageBtn"
+						id="downloadsBtn"
+						onClick={showDownloads}
+						ref={downloadsBtnRef}
+					>
 						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
 							<path
 								fill="#cdd6f4"
@@ -1316,6 +1429,46 @@ function App(): JSX.Element {
 				) : (
 					<></>
 				)}
+				{downloadsVisibility ? (
+					<div id="downloads-menu" ref={downloadsMenuRef}>
+						{downloads.map((download) => (
+							<div key={download.id} className="download-item">
+								<div className="download-info">
+									<h3>{download.filename}</h3>
+									<p>
+										<span>
+											{formatBytesOverBytes(
+												`${download.receivedBytes} / ${download.totalBytes}`
+											)}
+										</span>{' '}
+										{download.state.charAt(0).toUpperCase() +
+											download.state.slice(1)}
+									</p>
+									<progress
+										value={download.receivedBytes}
+										max={download.totalBytes}
+									></progress>
+								</div>
+								<button
+									onClick={() => {
+										handleOpenFolder(getDirectoryPath(download.savePath));
+									}}
+								>
+									<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+										<path d="M64 480H448c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H288c-10.1 0-19.6-4.7-25.6-12.8L243.2 57.6C231.1 41.5 212.1 32 192 32H64C28.7 32 0 60.7 0 96V416c0 35.3 28.7 64 64 64z" />
+									</svg>
+								</button>
+							</div>
+						))}
+						{/* <div className="download-item">
+							<div>
+								<h3>Test</h3>
+								<progress max={100} value={50}></progress>
+							</div>
+							
+						</div> */}
+					</div>
+				) : null}
 			</div>
 
 			<div className="page" style={{ width: '100%', height: '100vh' }}>

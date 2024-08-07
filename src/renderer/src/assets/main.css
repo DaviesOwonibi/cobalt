@@ -494,9 +494,10 @@ input::placeholder {
 	overflow: auto;
 	box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.5);
 	z-index: 1;
-	right: 15px;
-	top: 118px;
+	right: 0px;
+	top: 101px;
 	border-bottom-left-radius: 10px;
+	border-bottom-right-radius: 10px;
 }
 
 #settings-menu:hover {
@@ -530,6 +531,81 @@ input::placeholder {
 #settings-menu button:active {
 	transition: ease-in-out 0.2s;
 	transform: scale(0.95);
+}
+
+#downloads-menu {
+	animation: show 0.3s ease-in-out forwards;
+	display: block !important;
+	position: absolute;
+	background-color: var(--settingsMenuBackground);
+	min-width: 160px;
+	max-width: 230px;
+	max-height: 300px;
+	overflow: auto;
+	box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.5);
+	z-index: 1;
+	right: 45px;
+	top: 101px;
+	border-bottom-left-radius: 10px;
+	border-bottom-right-radius: 10px;
+}
+
+.download-item:hover {
+	background-color: var(--settingsMenuHoverBackground);
+}
+
+#downloads-menu button:hover {
+	transition: ease-in-out 0.2s;
+	transform: scale(1.1);
+}
+
+#downloads-menu button:active {
+	transition: ease-in-out 0.2s;
+	transform: scale(0.95);
+}
+
+.download-item:not(:first-child) {
+	border-top: 1px solid #fff;
+}
+
+.download-item {
+	padding: 8px;
+	display: flex;
+	vertical-align: middle;
+	align-items: center;
+	justify-content: center;
+
+	button {
+		margin-left: 30px;
+		background: none;
+
+		svg {
+			width: 20px;
+			height: 20px;
+			path {
+				fill: var(--accentColor);
+			}
+		}
+	}
+}
+
+.download-info {
+	display: flex;
+	flex-direction: column;
+	padding-left: 8px;
+	width: 300px;
+	font-size: 15px;
+
+	h3 {
+		max-height: 25px;
+		overflow: hidden;
+	}
+
+	p {
+		span {
+			font-family: 'Futura';
+		}
+	}
 }
 
 .show {
