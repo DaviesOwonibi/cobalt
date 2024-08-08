@@ -1647,7 +1647,7 @@ function App(): JSX.Element {
 							overflowWrap: 'break-word',
 							display: webviewValid(tab) ? 'flex' : 'none'
 						}}
-						nodeintegration="true"
+						nodeintegration
 						webpreferences="allowRunningInsecureContent, javascript=yes contextIsolation=true"
 					/>
 				))}
