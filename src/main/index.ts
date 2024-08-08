@@ -221,8 +221,6 @@ function createWindow(x: number, y: number, width: number, height: number): void
 				totalBytes: item.getTotalBytes()
 			};
 
-			console.log(updatedItem);
-
 			// Update store
 			const downloads = downloadsStore.get('downloads') as Download[];
 			const index = downloads.findIndex((d) => d.id === downloadItem.id);
@@ -246,7 +244,7 @@ function createWindow(x: number, y: number, width: number, height: number): void
 					downloads[index].state = 'cancelled';
 					downloadsStore.set('downloads', downloads);
 					// Send the updated download item to the renderer process
-					mainWindow.webContents.send('download-updated', downloadItem);
+					mainWindow.webContents.send('download-updated', downloads[index]);
 				}
 			}
 		});
@@ -256,13 +254,13 @@ function createWindow(x: number, y: number, width: number, height: number): void
 			const index = downloads.findIndex((d) => d.id === downloadId);
 			if (index !== -1) {
 				const downloadItem = item.getURL() === downloads[index].url ? item : null;
-				if (downloadItem && downloadItem.getState() !== 'progressing') {
+				if (downloadItem && downloadItem.getState() === 'progressing') {
 					// Update the download item in the store
 					downloadItem.pause();
 					downloads[index].state = 'interrupted';
 					downloadsStore.set('downloads', downloads);
 					// Send the updated download item to the renderer process
-					mainWindow.webContents.send('download-updated', downloadItem);
+					mainWindow.webContents.send('download-updated', downloads[index]);
 				}
 			}
 		});
@@ -272,13 +270,13 @@ function createWindow(x: number, y: number, width: number, height: number): void
 			const index = downloads.findIndex((d) => d.id === downloadId);
 			if (index !== -1) {
 				const downloadItem = item.getURL() === downloads[index].url ? item : null;
-				if (downloadItem && downloadItem.getState() !== 'interrupted') {
+				if (downloadItem && downloadItem.isPaused()) {
 					// Update the download item in the store
 					downloadItem.resume();
 					downloads[index].state = 'progressing';
 					downloadsStore.set('downloads', downloads);
 					// Send the updated download item to the renderer process
-					mainWindow.webContents.send('download-updated', downloadItem);
+					mainWindow.webContents.send('download-updated', downloads[index]);
 				}
 			}
 		});

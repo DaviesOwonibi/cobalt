@@ -860,6 +860,15 @@ function App(): JSX.Element {
 		ipcRenderer.send('CANCEL_DOWNLOAD', id);
 	};
 
+	const handlePauseDownload = (id: number): void => {
+		ipcRenderer.send('PAUSE_DOWNLOAD', id);
+	};
+
+	const handleResumeDownload = (id: number): void => {
+		ipcRenderer.send('RESUME_DOWNLOAD', id);
+		console.log('clicked');
+	};
+
 	function getDirectoryPath(fullPath: string): string {
 		// Split the path by backslashes or forward slashes
 		const parts = fullPath.split(/[\\/]/);
@@ -1601,19 +1610,50 @@ function App(): JSX.Element {
 												</svg>
 											</button>
 										) : (
-											<button
-												className="remove-download-item-btn"
-												onClick={() => {
-													handleCancelDownload(download.id);
-												}}
-											>
-												<svg
-													xmlns="http://www.w3.org/2000/svg"
-													viewBox="0 0 384 512"
+											<>
+												{download.state === 'interrupted' ? (
+													<button
+														className="remove-download-item-btn"
+														onClick={() => {
+															handleResumeDownload(download.id);
+														}}
+													>
+														<svg
+															xmlns="http://www.w3.org/2000/svg"
+															viewBox="0 0 384 512"
+														>
+															<path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80L0 432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z" />
+														</svg>
+													</button>
+												) : (
+													<button
+														className="remove-download-item-btn"
+														onClick={() => {
+															handlePauseDownload(download.id);
+														}}
+													>
+														<svg
+															xmlns="http://www.w3.org/2000/svg"
+															viewBox="0 0 320 512"
+														>
+															<path d="M48 64C21.5 64 0 85.5 0 112L0 400c0 26.5 21.5 48 48 48l32 0c26.5 0 48-21.5 48-48l0-288c0-26.5-21.5-48-48-48L48 64zm192 0c-26.5 0-48 21.5-48 48l0 288c0 26.5 21.5 48 48 48l32 0c26.5 0 48-21.5 48-48l0-288c0-26.5-21.5-48-48-48l-32 0z" />
+														</svg>
+													</button>
+												)}
+												<button
+													className="remove-download-item-btn"
+													onClick={() => {
+														handleCancelDownload(download.id);
+													}}
 												>
-													<path d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3 297.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256 342.6 150.6z" />
-												</svg>
-											</button>
+													<svg
+														xmlns="http://www.w3.org/2000/svg"
+														viewBox="0 0 384 512"
+													>
+														<path d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3 297.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256 342.6 150.6z" />
+													</svg>
+												</button>
+											</>
 										)}
 									</>
 								)}
