@@ -21,7 +21,7 @@ ElectronBlocker.fromPrebuiltAdsAndTracking(fetch).then((blocker) => {
 	blocker.enableBlockingInSession(session.defaultSession);
 });
 
-interface Download {
+interface Download extends Partial<Electron.DownloadItem> {
 	id: number;
 	filename: string;
 	url: string;
@@ -200,10 +200,9 @@ function createWindow(x: number, y: number, width: number, height: number): void
 			url: item.getURL(),
 			state: 'started',
 			receivedBytes: 0,
-			totalBytes: item.getTotalBytes(),
+			totalBytes: item.getTotalBytes() === 0 ? item.getReceivedBytes() : item.getTotalBytes(),
 			savePath: uniqueSavePath
 		};
-
 		// Add to downloads store
 		const downloads = downloadsStore.get('downloads') as unknown[];
 		downloads.unshift(downloadItem);
@@ -218,8 +217,11 @@ function createWindow(x: number, y: number, width: number, height: number): void
 			const updatedItem = {
 				...downloadItem,
 				state: state,
-				receivedBytes: item.getReceivedBytes()
+				receivedBytes: item.getReceivedBytes(),
+				totalBytes: item.getTotalBytes()
 			};
+
+			console.log(updatedItem);
 
 			// Update store
 			const downloads = downloadsStore.get('downloads') as Download[];
@@ -233,11 +235,60 @@ function createWindow(x: number, y: number, width: number, height: number): void
 			mainWindow.webContents.send('download-updated', updatedItem);
 		});
 
+		ipcMain.on('CANCEL_DOWNLOAD', (_event, downloadId) => {
+			const downloads = downloadsStore.get('downloads') as Download[];
+			const index = downloads.findIndex((d) => d.id === downloadId);
+			if (index !== -1) {
+				const downloadItem = item.getURL() === downloads[index].url ? item : null;
+				if (downloadItem && downloadItem.getState() !== 'cancelled') {
+					// Update the download item in the store
+					downloadItem.cancel();
+					downloads[index].state = 'cancelled';
+					downloadsStore.set('downloads', downloads);
+					// Send the updated download item to the renderer process
+					mainWindow.webContents.send('download-updated', downloadItem);
+				}
+			}
+		});
+
+		ipcMain.on('PAUSE_DOWNLOAD', (_event, downloadId) => {
+			const downloads = downloadsStore.get('downloads') as Download[];
+			const index = downloads.findIndex((d) => d.id === downloadId);
+			if (index !== -1) {
+				const downloadItem = item.getURL() === downloads[index].url ? item : null;
+				if (downloadItem && downloadItem.getState() !== 'progressing') {
+					// Update the download item in the store
+					downloadItem.pause();
+					downloads[index].state = 'interrupted';
+					downloadsStore.set('downloads', downloads);
+					// Send the updated download item to the renderer process
+					mainWindow.webContents.send('download-updated', downloadItem);
+				}
+			}
+		});
+
+		ipcMain.on('RESUME_DOWNLOAD', (_event, downloadId) => {
+			const downloads = downloadsStore.get('downloads') as Download[];
+			const index = downloads.findIndex((d) => d.id === downloadId);
+			if (index !== -1) {
+				const downloadItem = item.getURL() === downloads[index].url ? item : null;
+				if (downloadItem && downloadItem.getState() !== 'interrupted') {
+					// Update the download item in the store
+					downloadItem.resume();
+					downloads[index].state = 'progressing';
+					downloadsStore.set('downloads', downloads);
+					// Send the updated download item to the renderer process
+					mainWindow.webContents.send('download-updated', downloadItem);
+				}
+			}
+		});
+
 		item.once('done', (_event, state) => {
 			const finalItem = {
 				...downloadItem,
 				state: state,
-				receivedBytes: item.getReceivedBytes()
+				receivedBytes: item.getReceivedBytes(),
+				totalBytes: item.getTotalBytes()
 			};
 
 			// Update store

@@ -677,7 +677,7 @@ function App(): JSX.Element {
 	function formatBytes(bytes: number, decimals: number = 2): string {
 		if (bytes === 0) return '0 Bytes';
 
-		const k = 1000;
+		const k = 1024;
 		const dm = decimals < 0 ? 0 : decimals;
 		const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
 
@@ -748,7 +748,7 @@ function App(): JSX.Element {
 				if (response.ok) {
 					const result = await response.json();
 					const data = JSON.parse(result.contents);
-					setRecommendations(data[1]);
+					setRecommendations(data[1].slice(0, 7));
 				} else {
 					setRecommendations([]);
 				}
@@ -852,7 +852,12 @@ function App(): JSX.Element {
 	};
 
 	const handleOpenFolder = (path: string): void => {
+		setDownloadsVisibility(false);
 		ipcRenderer.invoke('OPEN_FOLDER', path);
+	};
+
+	const handleCancelDownload = (id: number): void => {
+		ipcRenderer.send('CANCEL_DOWNLOAD', id);
 	};
 
 	function getDirectoryPath(fullPath: string): string {
@@ -1063,35 +1068,6 @@ function App(): JSX.Element {
 				webview.addEventListener('did-finish-load', updateTabInfo);
 				webview.addEventListener('did-start-navigation', handleAboutToNavigate);
 				webview.addEventListener('page-title-updated', updateTabInfo);
-				// webview.addEventListener('dom-ready', () => {
-				// 	webview.insertCSS(`
-				// 		::-webkit-scrollbar {
-				// 			width: 15px;
-				// 			height: 10px;
-				// 		}
-				// 		::-webkit-scrollbar-track {
-				// 			background-color: rgb(32, 40, 48);
-				// 		}
-				// 		::-webkit-scrollbar-track-piece {
-				// 			background-color: rgb(18, 22, 26);
-				// 		}
-				// 		::-webkit-scrollbar-thumb {
-				// 			height: 5%;
-				// 			width: 5px;
-				// 			background-color: rgb(32, 40, 48);
-				// 			background-color: #cdd6f4;
-				// 			border: 1px rgb(18, 22, 26) solid;
-				// 		}
-				// 		::-webkit-scrollbar-thumb:hover {
-				// 			opacity: 0.2;
-				// 			background-color: #b4befe;
-				// 		}
-
-				// 		::-webkit-scrollbar-corner {
-				// 			background-color: rgb(32, 40, 48);
-				// 		}
-				// 	`);
-				// });
 			}
 		});
 
@@ -1130,6 +1106,8 @@ function App(): JSX.Element {
 			fetchHistory();
 		} else if (tabs[activeTabIndex]?.url === 'cobalt://themes') {
 			fetchThemes();
+		} else if (tabs[activeTabIndex]?.url === 'cobalt://downloads') {
+			fetchDownloads();
 		}
 	}, [activeTabIndex, tabs]);
 
@@ -1171,49 +1149,68 @@ function App(): JSX.Element {
 	}, []);
 
 	useEffect(() => {
-		const handleClickOutside = (event): void => {
-			if (
+		const handleClickOutside = (event: MouseEvent): void => {
+			const clickedOnThemeForm =
 				showThemeForm &&
 				themeFormRef.current &&
 				themeButtonRef.current &&
-				!themeFormRef.current.contains(event.target) &&
-				!themeButtonRef.current.contains(event.target)
-			) {
-				setShowThemeForm(false);
-			} else if (
+				!themeFormRef.current.contains(event.target as Node) &&
+				!themeButtonRef.current.contains(event.target as Node);
+
+			const clickedOnSettingsMenu =
 				settingsVisibility &&
 				settingsBtnRef.current &&
 				settingsMenuRef.current &&
-				!settingsBtnRef.current.contains(event.target) &&
-				!settingsMenuRef.current.contains(event.target)
-			) {
-				setSettingsVisibility(false);
-			} else if (
+				!settingsBtnRef.current.contains(event.target as Node) &&
+				!settingsMenuRef.current.contains(event.target as Node);
+
+			const clickedOutsideDownloadsMenu =
 				downloadsVisibility &&
 				downloadsBtnRef.current &&
 				downloadsMenuRef.current &&
-				!downloadsBtnRef.current.contains(event.target) &&
-				!downloadsMenuRef.current.contains(event.target)
-			) {
-				setDownloadsVisibility(false);
-			} else if (searchInputRef.current && !searchInputRef.current.contains(event.target)) {
-				setIsFocused(false);
-			}
-			if (
+				!downloadsBtnRef.current.contains(event.target as Node) &&
+				!downloadsMenuRef.current.contains(event.target as Node);
+
+			const clickedOutsideSearchInput =
+				searchInputRef.current && !searchInputRef.current.contains(event.target as Node);
+
+			const clickedOutsideSearchRecommendation =
 				searchRecommendationRef.current &&
 				searchFormRef.current &&
-				!searchRecommendationRef.current.contains(event.target) &&
-				!searchFormRef.current.contains(event.target)
-			) {
+				!searchRecommendationRef.current.contains(event.target as Node) &&
+				!searchFormRef.current.contains(event.target as Node);
+
+			if (clickedOnThemeForm) {
+				setShowThemeForm(false);
+			}
+			if (clickedOnSettingsMenu) {
+				setSettingsVisibility(false);
+			}
+			if (clickedOutsideDownloadsMenu) {
+				setDownloadsVisibility(false);
+			}
+			if (clickedOutsideSearchInput) {
+				setIsFocused(false);
+			}
+			if (clickedOutsideSearchRecommendation) {
 				setShowRecommendations(false);
 			}
 		};
 
 		document.addEventListener('mousedown', handleClickOutside);
+		// const webview = webviewRefs.current[activeTab];
+		//  console.log(webview);
+		// if (webview) {
+		// 	webview.addEventListener('click', handleClickOutside);
+		// }
+
 		return (): void => {
 			document.removeEventListener('mousedown', handleClickOutside);
+			// if (webview) {
+			// 	webview.removeEventListener('click', handleClickOutside);
+			// }
 		};
-	}, [showThemeForm, settingsVisibility, showRecommendations]);
+	}, [showThemeForm, settingsVisibility, showRecommendations, downloadsVisibility, activeTab]);
 
 	const handleInputMouseDown = (e): void => {
 		if (!isFocused) {
@@ -1296,6 +1293,7 @@ function App(): JSX.Element {
 								onDragLeave={() => handleDragLeave()}
 								onDragEnd={() => handleDragEnd()}
 								onDrop={(e) => handleDrop(e, index)}
+								title={tab.name}
 							>
 								<span className="tabName">{tab.name}</span>
 								<button onClick={() => closeTab(tab.id)} className="close-tab">
@@ -1400,7 +1398,8 @@ function App(): JSX.Element {
 								id="search-input"
 								type="text"
 								value={searchInput}
-								onChange={handleSearchChange}
+								// onInput={handleSearchChange}
+								onInputCapture={handleSearchChange}
 								aria-placeholder="Search Google or enter address"
 								placeholder="Search Google or enter address"
 								spellCheck="false"
@@ -1474,17 +1473,18 @@ function App(): JSX.Element {
 						</button>
 						<button
 							onClick={() => {
-								openCobaltPageFromSettings('Themes', 'cobalt://themes');
+								openCobaltPageFromSettings('Downloads', 'cobalt://downloads');
 							}}
 						>
 							<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
 								<path
 									fill="#cdd6f4"
-									d="M512 256c0 .9 0 1.8 0 2.7c-.4 36.5-33.6 61.3-70.1 61.3L344 320c-26.5 0-48 21.5-48 48c0 3.4 .4 6.7 1 9.9c2.1 10.2 6.5 20 10.8 29.9c6.1 13.8 12.1 27.5 12.1 42c0 31.8-21.6 60.7-53.4 62c-3.5 .1-7 .2-10.6 .2C114.6 512 0 397.4 0 256S114.6 0 256 0S512 114.6 512 256zM128 288a32 32 0 1 0 -64 0 32 32 0 1 0 64 0zm0-96a32 32 0 1 0 0-64 32 32 0 1 0 0 64zM288 96a32 32 0 1 0 -64 0 32 32 0 1 0 64 0zm96 96a32 32 0 1 0 0-64 32 32 0 1 0 0 64z"
+									d="M288 32c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 242.7-73.4-73.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l128 128c12.5 12.5 32.8 12.5 45.3 0l128-128c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L288 274.7 288 32zM64 352c-35.3 0-64 28.7-64 64l0 32c0 35.3 28.7 64 64 64l384 0c35.3 0 64-28.7 64-64l0-32c0-35.3-28.7-64-64-64l-101.5 0-45.3 45.3c-25 25-65.5 25-90.5 0L165.5 352 64 352zm368 56a24 24 0 1 1 0 48 24 24 0 1 1 0-48z"
 								/>
 							</svg>
-							Themes
+							Downloads
 						</button>
+
 						<button
 							onClick={() => {
 								openCobaltPageFromSettings('History', 'cobalt://history');
@@ -1498,14 +1498,36 @@ function App(): JSX.Element {
 							</svg>
 							History
 						</button>
+						<button
+							onClick={() => {
+								openCobaltPageFromSettings('Themes', 'cobalt://themes');
+							}}
+						>
+							<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+								<path
+									fill="#cdd6f4"
+									d="M512 256c0 .9 0 1.8 0 2.7c-.4 36.5-33.6 61.3-70.1 61.3L344 320c-26.5 0-48 21.5-48 48c0 3.4 .4 6.7 1 9.9c2.1 10.2 6.5 20 10.8 29.9c6.1 13.8 12.1 27.5 12.1 42c0 31.8-21.6 60.7-53.4 62c-3.5 .1-7 .2-10.6 .2C114.6 512 0 397.4 0 256S114.6 0 256 0S512 114.6 512 256zM128 288a32 32 0 1 0 -64 0 32 32 0 1 0 64 0zm0-96a32 32 0 1 0 0-64 32 32 0 1 0 0 64zM288 96a32 32 0 1 0 -64 0 32 32 0 1 0 64 0zm96 96a32 32 0 1 0 0-64 32 32 0 1 0 0 64z"
+								/>
+							</svg>
+							Themes
+						</button>
 					</div>
 				) : (
 					<></>
 				)}
 				{downloadsVisibility ? (
-					<div id="downloads-menu" ref={downloadsMenuRef}>
+					<div
+						id="downloads-menu"
+						ref={downloadsMenuRef}
+						onBlur={() => {
+							setDownloadsVisibility(false);
+						}}
+					>
 						{downloads.map((download) => (
-							<div key={download.id} className="download-item">
+							<div
+								key={download.id}
+								className={`download-item ${download.state === 'cancelled' ? 'cancelled' : ''}`}
+							>
 								<div className="download-info">
 									<h3>
 										<img
@@ -1516,10 +1538,15 @@ function App(): JSX.Element {
 									</h3>
 									<p>
 										<span>
-											{formatBytesOverBytes(
-												`${download.receivedBytes} / ${download.totalBytes}`
-											)}
-										</span>{' '}
+											{download.state === 'completed'
+												? formatBytesOverBytes(
+														`${download.receivedBytes} / ${download.receivedBytes}`
+													)
+												: formatBytesOverBytes(
+														`${download.receivedBytes} / ${download.totalBytes}`
+													)}
+										</span>
+										<br />
 										{download.state.charAt(0).toUpperCase() +
 											download.state.slice(1)}
 									</p>
@@ -1528,15 +1555,68 @@ function App(): JSX.Element {
 										max={download.totalBytes}
 									></progress>
 								</div>
-								<button
-									onClick={() => {
-										handleOpenFolder(getDirectoryPath(download.savePath));
-									}}
-								>
-									<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-										<path d="M64 480H448c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H288c-10.1 0-19.6-4.7-25.6-12.8L243.2 57.6C231.1 41.5 212.1 32 192 32H64C28.7 32 0 60.7 0 96V416c0 35.3 28.7 64 64 64z" />
-									</svg>
-								</button>
+								{download.state === 'completed' ? (
+									<>
+										<button
+											onClick={() => {
+												handleOpenFolder(
+													getDirectoryPath(download.savePath)
+												);
+											}}
+										>
+											<svg
+												xmlns="http://www.w3.org/2000/svg"
+												viewBox="0 0 512 512"
+											>
+												<path d="M64 480H448c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H288c-10.1 0-19.6-4.7-25.6-12.8L243.2 57.6C231.1 41.5 212.1 32 192 32H64C28.7 32 0 60.7 0 96V416c0 35.3 28.7 64 64 64z" />
+											</svg>
+										</button>
+										<button
+											onClick={() => {
+												handleOpenFolder(download.savePath);
+											}}
+										>
+											<svg
+												xmlns="http://www.w3.org/2000/svg"
+												viewBox="0 0 512 512"
+											>
+												<path d="M320 0c-17.7 0-32 14.3-32 32s14.3 32 32 32l82.7 0L201.4 265.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L448 109.3l0 82.7c0 17.7 14.3 32 32 32s32-14.3 32-32l0-160c0-17.7-14.3-32-32-32L320 0zM80 32C35.8 32 0 67.8 0 112L0 432c0 44.2 35.8 80 80 80l320 0c44.2 0 80-35.8 80-80l0-112c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 112c0 8.8-7.2 16-16 16L80 448c-8.8 0-16-7.2-16-16l0-320c0-8.8 7.2-16 16-16l112 0c17.7 0 32-14.3 32-32s-14.3-32-32-32L80 32z" />
+											</svg>
+										</button>
+									</>
+								) : (
+									<>
+										{download.state === 'cancelled' ? (
+											<button
+												className="remove-download-item-btn"
+												onClick={() => {
+													removeDownload(download.id);
+												}}
+											>
+												<svg
+													xmlns="http://www.w3.org/2000/svg"
+													viewBox="0 0 448 512"
+												>
+													<path d="M64 32C28.7 32 0 60.7 0 96L0 416c0 35.3 28.7 64 64 64l320 0c35.3 0 64-28.7 64-64l0-320c0-35.3-28.7-64-64-64L64 32zm79 143c9.4-9.4 24.6-9.4 33.9 0l47 47 47-47c9.4-9.4 24.6-9.4 33.9 0s9.4 24.6 0 33.9l-47 47 47 47c9.4 9.4 9.4 24.6 0 33.9s-24.6 9.4-33.9 0l-47-47-47 47c-9.4 9.4-24.6 9.4-33.9 0s-9.4-24.6 0-33.9l47-47-47-47c-9.4-9.4-9.4-24.6 0-33.9z" />
+												</svg>
+											</button>
+										) : (
+											<button
+												className="remove-download-item-btn"
+												onClick={() => {
+													handleCancelDownload(download.id);
+												}}
+											>
+												<svg
+													xmlns="http://www.w3.org/2000/svg"
+													viewBox="0 0 384 512"
+												>
+													<path d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3 297.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256 342.6 150.6z" />
+												</svg>
+											</button>
+										)}
+									</>
+								)}
 							</div>
 						))}
 						{/* <div className="download-item">
@@ -1562,12 +1642,12 @@ function App(): JSX.Element {
 						src={webviewValid(tab) ? tab.url : ''}
 						style={{
 							width: '100vw',
-							height: 'calc(100vh - 102px)',
+							height: 'calc(100vh - 101px)',
 							border: 'none',
 							overflowWrap: 'break-word',
 							display: webviewValid(tab) ? 'flex' : 'none'
 						}}
-						nodeintegration
+						nodeintegration="true"
 						webpreferences="allowRunningInsecureContent, javascript=yes contextIsolation=true"
 					/>
 				))}
@@ -1614,7 +1694,10 @@ function App(): JSX.Element {
 						<h1>Downloads</h1>
 						<ul className="downloads-list">
 							{downloads.map((download, index) => (
-								<li key={index} className="download-page-item">
+								<li
+									key={index}
+									className={`download-page-item ${download.state === 'cancelled' ? 'cancelled' : ''}`}
+								>
 									<h1>
 										<img
 											src={getImagePath(getFileExtension(download.savePath))}
@@ -1636,35 +1719,77 @@ function App(): JSX.Element {
 									>
 										{download.url}
 									</a>
+									{download.state !== 'completed' ? (
+										<progress
+											value={download.receivedBytes}
+											max={download.totalBytes}
+										></progress>
+									) : null}
 									<span className="history-timestamp">
-										<button
-											className="remove-download-item-btn"
-											onClick={() => {
-												removeDownload(download.id);
-											}}
-										>
-											<svg
-												xmlns="http://www.w3.org/2000/svg"
-												viewBox="0 0 448 512"
-											>
-												<path d="M64 32C28.7 32 0 60.7 0 96L0 416c0 35.3 28.7 64 64 64l320 0c35.3 0 64-28.7 64-64l0-320c0-35.3-28.7-64-64-64L64 32zm79 143c9.4-9.4 24.6-9.4 33.9 0l47 47 47-47c9.4-9.4 24.6-9.4 33.9 0s9.4 24.6 0 33.9l-47 47 47 47c9.4 9.4 9.4 24.6 0 33.9s-24.6 9.4-33.9 0l-47-47-47 47c-9.4 9.4-24.6 9.4-33.9 0s-9.4-24.6 0-33.9l47-47-47-47c-9.4-9.4-9.4-24.6 0-33.9z" />
-											</svg>
-										</button>
-										<button
-											className="remove-download-item-btn"
-											onClick={() => {
-												handleOpenFolder(
-													getDirectoryPath(download.savePath)
-												);
-											}}
-										>
-											<svg
-												xmlns="http://www.w3.org/2000/svg"
-												viewBox="0 0 512 512"
-											>
-												<path d="M64 480H448c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H288c-10.1 0-19.6-4.7-25.6-12.8L243.2 57.6C231.1 41.5 212.1 32 192 32H64C28.7 32 0 60.7 0 96V416c0 35.3 28.7 64 64 64z" />
-											</svg>
-										</button>
+										{download.state === 'completed' ? (
+											<>
+												<button
+													className="remove-download-item-btn"
+													onClick={() => {
+														removeDownload(download.id);
+													}}
+												>
+													<svg
+														xmlns="http://www.w3.org/2000/svg"
+														viewBox="0 0 448 512"
+													>
+														<path d="M64 32C28.7 32 0 60.7 0 96L0 416c0 35.3 28.7 64 64 64l320 0c35.3 0 64-28.7 64-64l0-320c0-35.3-28.7-64-64-64L64 32zm79 143c9.4-9.4 24.6-9.4 33.9 0l47 47 47-47c9.4-9.4 24.6-9.4 33.9 0s9.4 24.6 0 33.9l-47 47 47 47c9.4 9.4 9.4 24.6 0 33.9s-24.6 9.4-33.9 0l-47-47-47 47c-9.4 9.4-24.6 9.4-33.9 0s-9.4-24.6 0-33.9l47-47-47-47c-9.4-9.4-9.4-24.6 0-33.9z" />
+													</svg>
+												</button>
+												<button
+													className="remove-download-item-btn"
+													onClick={() => {
+														handleOpenFolder(
+															getDirectoryPath(download.savePath)
+														);
+													}}
+												>
+													<svg
+														xmlns="http://www.w3.org/2000/svg"
+														viewBox="0 0 512 512"
+													>
+														<path d="M64 480H448c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H288c-10.1 0-19.6-4.7-25.6-12.8L243.2 57.6C231.1 41.5 212.1 32 192 32H64C28.7 32 0 60.7 0 96V416c0 35.3 28.7 64 64 64z" />
+													</svg>
+												</button>
+											</>
+										) : (
+											<>
+												{download.state === 'cancelled' ? (
+													<button
+														className="remove-download-item-btn"
+														onClick={() => {
+															removeDownload(download.id);
+														}}
+													>
+														<svg
+															xmlns="http://www.w3.org/2000/svg"
+															viewBox="0 0 448 512"
+														>
+															<path d="M64 32C28.7 32 0 60.7 0 96L0 416c0 35.3 28.7 64 64 64l320 0c35.3 0 64-28.7 64-64l0-320c0-35.3-28.7-64-64-64L64 32zm79 143c9.4-9.4 24.6-9.4 33.9 0l47 47 47-47c9.4-9.4 24.6-9.4 33.9 0s9.4 24.6 0 33.9l-47 47 47 47c9.4 9.4 9.4 24.6 0 33.9s-24.6 9.4-33.9 0l-47-47-47 47c-9.4 9.4-24.6 9.4-33.9 0s-9.4-24.6 0-33.9l47-47-47-47c-9.4-9.4-9.4-24.6 0-33.9z" />
+														</svg>
+													</button>
+												) : (
+													<button
+														className="remove-download-item-btn"
+														onClick={() => {
+															handleCancelDownload(download.id);
+														}}
+													>
+														<svg
+															xmlns="http://www.w3.org/2000/svg"
+															viewBox="0 0 384 512"
+														>
+															<path d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3 297.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256 342.6 150.6z" />
+														</svg>
+													</button>
+												)}
+											</>
+										)}
 									</span>
 								</li>
 							))}
