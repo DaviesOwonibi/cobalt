@@ -67,12 +67,16 @@ function App(): JSX.Element {
 	const [showRecommendations, setShowRecommendations] = useState(false);
 	const searchRecommendationRef = useRef<HTMLUListElement>(null);
 	const searchFormRef = useRef<HTMLFormElement>(null);
+	const historyRef = useRef<HTMLDivElement>(null);
+	const downloadsRef = useRef<HTMLDivElement>(null);
+	const themesRef = useRef<HTMLDivElement>(null);
 	const [shouldSelect, setShouldSelect] = useState(false);
 	const [homeSearchInput, setHomeSearchInput] = useState('');
 	const webviewRefs = useRef<{ [key: string]: WebviewTag }>({});
 	const [canGoBack, setCanGoBack] = useState(false);
 	const [canGoForward, setCanGoForward] = useState(false);
 	const [recommendations, setRecommendations] = useState([]);
+	const [findInstanceCount, setFindInstanceCount] = useState('');
 	const [history, setHistory] = useState<{
 		sites: string[];
 		timestamps: number[];
@@ -200,8 +204,10 @@ function App(): JSX.Element {
 	const [downloadsVisibility, setDownloadsVisibility] = useState(false);
 	const downloadsBtnRef = useRef<HTMLButtonElement>(null);
 	const downloadsMenuRef = useRef<HTMLDivElement>(null);
-
-	const activeTabIndex = tabs.findIndex((tab) => tab.id === activeTab);
+	const findBoxRef = useRef<HTMLInputElement>(null);
+	const [findBoxVisibility, setFindBoxVisibility] = useState(false);
+	// const [webviewTextContent, setWebviewTextContent] = useState('');
+	let activeTabIndex = tabs.findIndex((tab) => tab.id === activeTab);
 	const ipcRenderer = (window as any).electron.ipcRenderer;
 	const popup = Notification({
 		position: 'center',
@@ -214,8 +220,8 @@ function App(): JSX.Element {
 	function addTab(): void {
 		const newTab = { name: 'New Tab', url: '', id: idCounter, key: `tab-${idCounter}` };
 		setTabs([...tabs, newTab]);
-		setIdCounter(idCounter + 1);
 		setActiveTab(newTab.id);
+		setIdCounter(idCounter + 1);
 		setSearchInput('');
 		if (searchInputRef.current) {
 			searchInputRef.current.focus();
@@ -296,7 +302,8 @@ function App(): JSX.Element {
 
 	function closeTab(id: number): void {
 		setTabs((prevTabs) => {
-			const closingTab = tabs[getTabIndexFromId(id)];
+			const closingTabIndex = getTabIndexFromId(id);
+			const closingTab = tabs[closingTabIndex];
 			setLastTab(closingTab);
 			const newTabs = prevTabs.filter((tab) => tab.id !== id);
 
@@ -306,10 +313,21 @@ function App(): JSX.Element {
 				return prevTabs;
 			}
 
-			// If the closed tab was the active one, set a new active tab
+			// If the closed tab was the active one
 			if (activeTab === id) {
-				setSearchInput(newTabs[newTabs.length - 1].url);
-				setActiveTab(newTabs[newTabs.length - 1].id);
+				let newActiveTab;
+
+				// Check if there is a tab on the right
+				if (closingTabIndex < newTabs.length) {
+					newActiveTab = newTabs[closingTabIndex]; // Right tab
+				} else if (closingTabIndex > 0) {
+					newActiveTab = newTabs[closingTabIndex - 1]; // Left tab
+				}
+
+				if (newActiveTab) {
+					setSearchInput(newActiveTab.url);
+					setActiveTab(newActiveTab.id);
+				}
 			} else {
 				setActiveTab(newTabs[getTabIndexFromId(id)].id);
 			}
@@ -327,8 +345,8 @@ function App(): JSX.Element {
 			setTabs((prevTabs) => {
 				const tab = prevTabs.find((t) => t.id === id);
 				if (tab) {
+					setActiveTab(tab.id);
 					setSearchInput(tab.url);
-					setActiveTab(id);
 				}
 				return prevTabs;
 			});
@@ -531,6 +549,7 @@ function App(): JSX.Element {
 			const updatedTabs = tabs.map((tab) =>
 				tab.id === activeTab ? { ...tab, url: newUrl } : tab
 			);
+			setShowRecommendations(false);
 			setTabs(updatedTabs);
 			const webview = webviewRefs.current[activeTab];
 			if (webview) {
@@ -542,7 +561,21 @@ function App(): JSX.Element {
 	}
 
 	async function handleSearchSuggestion(suggestion: string): Promise<void> {
-		const newUrl: string = `https://www.google.com/search?q=${encodeURIComponent(suggestion)}`;
+		const httpsPattern = /\b(?:https?:\/\/|www\.)[^\s/$.?#].[^\s]*\b/;
+		const tldPattern =
+			/(https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z0-9]{2,}(\.[a-zA-Z0-9]{2,})(\.[a-zA-Z0-9]{2,})?/;
+		const localhostPattern = /^localhost:\d+$/;
+		const googleSearchPattern = /^(?!https?:\/\/|www\.).+\s?.*$/;
+		let newUrl: string = '';
+		if (httpsPattern.test(suggestion)) {
+			newUrl = suggestion;
+		} else if (tldPattern.test(suggestion)) {
+			newUrl = `https://${suggestion}`;
+		} else if (localhostPattern.test(suggestion)) {
+			newUrl = `http://${suggestion}`;
+		} else if (googleSearchPattern.test(suggestion)) {
+			newUrl = `https://www.google.com/search?q=${encodeURIComponent(suggestion)}`;
+		}
 		const updatedTabs = tabs.map((tab) =>
 			tab.id === activeTab ? { ...tab, url: newUrl } : tab
 		);
@@ -606,6 +639,315 @@ function App(): JSX.Element {
 	};
 
 	// Utility functions
+
+	const highlightText = (
+		textToHighlight: string,
+		caseSensitive: boolean,
+		wholeWord: boolean,
+		historyPage?: boolean,
+		downloadsPage?: boolean,
+		themesPage?: boolean
+	) => {
+		const escapeRegExp = (string: string): string => {
+			return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+		};
+
+		const markClass = 'highlighted-text';
+		const currentMarkClass = 'current-highlight';
+		let currentIndex = 0;
+		const matches: HTMLElement[] = [];
+
+		const updateInstanceCount = (): string =>
+			matches.length > 0 ? `${currentIndex + 1}/${matches.length}` : '0/0';
+
+		// Determine the root element based on the page type
+		let rootElement: HTMLElement | null = document.body;
+		if (historyPage && historyRef.current) {
+			rootElement = historyRef.current;
+		} else if (downloadsPage && downloadsRef.current) {
+			rootElement = downloadsRef.current;
+		} else if (themesPage && themesRef.current) {
+			rootElement = themesRef.current;
+		}
+
+		const removeHighlights = (rootElement: HTMLElement | null): void => {
+			rootElement?.querySelectorAll(`.${markClass}`).forEach((el) => {
+				el.outerHTML = el.innerHTML;
+			});
+		};
+
+		removeHighlights(rootElement);
+
+		if (!textToHighlight.trim()) {
+			removeHighlights(rootElement);
+			return {
+				count: 0,
+				moveToNextMatchAvailable: true,
+				initialInstanceCount: updateInstanceCount()
+			};
+		}
+
+		const escapeRegExpStr = escapeRegExp(textToHighlight);
+		let regexStr = escapeRegExpStr;
+		if (wholeWord) regexStr = `\\b${regexStr}\\b`;
+		const regex = new RegExp(regexStr, caseSensitive ? 'g' : 'gi');
+
+		const walker = document.createTreeWalker(rootElement, NodeFilter.SHOW_TEXT, {
+			acceptNode: (node) => {
+				if (
+					node.parentNode &&
+					['TEXTAREA', 'INPUT', 'SCRIPT', 'STYLE'].includes(node.parentNode.nodeName)
+				) {
+					return NodeFilter.FILTER_REJECT;
+				}
+				return NodeFilter.FILTER_ACCEPT;
+			}
+		});
+
+		const nodesToReplace: Text[] = [];
+		while (walker.nextNode()) {
+			const node = walker.currentNode;
+			if (
+				node.nodeType === Node.TEXT_NODE &&
+				node.textContent &&
+				regex.test(node.textContent)
+			) {
+				nodesToReplace.push(node as Text);
+			}
+		}
+
+		nodesToReplace.forEach((node) => {
+			const fragment = document.createDocumentFragment();
+			const parts = node.textContent?.split(regex);
+			const nodeMatches = node.textContent?.match(regex) || [];
+
+			parts?.forEach((part, index) => {
+				fragment.appendChild(document.createTextNode(part));
+				if (index < nodeMatches.length) {
+					const mark = document.createElement('mark');
+					mark.className = markClass;
+					mark.textContent = nodeMatches[index];
+					fragment.appendChild(mark);
+					matches.push(mark);
+				}
+			});
+
+			node.parentNode?.replaceChild(fragment, node);
+		});
+
+		const highlightCurrent = (): void => {
+			matches.forEach((match) => match.classList.remove(currentMarkClass));
+			if (matches[currentIndex]) {
+				matches[currentIndex].classList.add(currentMarkClass);
+			}
+		};
+
+		const scrollToCurrent = (): void => {
+			if (matches[currentIndex]) {
+				let element = matches[currentIndex] as HTMLElement;
+				while (element) {
+					if (element.scrollIntoView) {
+						element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+						rootElement.scrollIntoView({ behavior: 'smooth', block: 'end' });
+						break;
+					}
+					element = element.parentElement as HTMLElement;
+				}
+			}
+		};
+
+		let isMoving = false;
+		const moveToNextMatch = (): string => {
+			if (isMoving || matches.length === 0) return updateInstanceCount();
+			isMoving = true;
+			currentIndex = (currentIndex + 1) % matches.length;
+			highlightCurrent();
+			scrollToCurrent();
+			const count = updateInstanceCount();
+			setTimeout(() => {
+				isMoving = false;
+			}, 100); // Prevent rapid firing
+			return count;
+		};
+
+		return {
+			count: matches.length,
+			moveToNextMatchAvailable: true,
+			initialInstanceCount: updateInstanceCount(),
+			moveToNextMatch
+		};
+	};
+
+	function findInWebview(
+		webview: Electron.WebviewTag,
+		value: string,
+		options: { caseSensitive?: boolean; wholeWord?: boolean } = {}
+	): void {
+		const jsCode = `
+    (function() {
+        try {
+            const highlightText = ${highlightText.toString()};
+            const result = highlightText(${JSON.stringify(value)}, ${options.caseSensitive || false}, ${options.wholeWord || false});
+            window.moveToNextMatch = result.moveToNextMatch;
+            return { count: result.count, moveToNextMatchAvailable: result.moveToNextMatchAvailable, initialInstanceCount: result.initialInstanceCount };
+        } catch (error) {
+            console.error('Highlighting failed:', error);
+            return { count: 0, error: error.message, moveToNextMatchAvailable: false, initialInstanceCount: '0/0' };
+        }
+    })();
+`;
+
+		webview.insertCSS('.current-highlight {background-color: orange}');
+		webview.executeJavaScript(jsCode).then((result) => {
+			if (result.moveToNextMatchAvailable) {
+				setupKeypressListener(webview);
+				updateInstanceCountDisplay(result.initialInstanceCount);
+			}
+		});
+	}
+
+	function findInHistoryPage(
+		value: string,
+		options: { caseSensitive?: boolean; wholeWord?: boolean } = {}
+	): void {
+		try {
+			document.querySelectorAll(`.highlighted-text`).forEach((el) => {
+				el.outerHTML = el.innerHTML;
+			});
+
+			// historyRef.current.remove
+			const result = highlightText(
+				value,
+				options.caseSensitive || false,
+				options.wholeWord || false,
+				true
+			);
+			if (result.moveToNextMatchAvailable) {
+				updateInstanceCountDisplay(result.initialInstanceCount);
+				window.addEventListener('keypress', (event) => {
+					if (event.key === 'Enter') {
+						event.preventDefault();
+						if (result.moveToNextMatch) {
+							const newInstanceCount = result.moveToNextMatch();
+							updateInstanceCountDisplay(newInstanceCount);
+						}
+					}
+				});
+			}
+		} catch (error) {
+			console.error('Highlighting failed:', error);
+		}
+	}
+
+	function findInDownloadsPage(
+		value: string,
+		options: { caseSensitive?: boolean; wholeWord?: boolean } = {}
+	): void {
+		try {
+			document.querySelectorAll(`.highlighted-text`).forEach((el) => {
+				el.outerHTML = el.innerHTML;
+			});
+			const result = highlightText(
+				value,
+				options.caseSensitive || false,
+				options.wholeWord || false,
+				false,
+				true
+			);
+			if (result.moveToNextMatchAvailable) {
+				updateInstanceCountDisplay(result.initialInstanceCount);
+				window.addEventListener('keypress', (event) => {
+					if (event.key === 'Enter') {
+						event.preventDefault();
+						if (result.moveToNextMatch) {
+							const newInstanceCount = result.moveToNextMatch();
+							updateInstanceCountDisplay(newInstanceCount);
+						}
+					}
+				});
+			}
+		} catch (error) {
+			console.error('Highlighting failed:', error);
+		}
+	}
+
+	function findInThemesPage(
+		value: string,
+		options: { caseSensitive?: boolean; wholeWord?: boolean } = {}
+	): void {
+		try {
+			document.querySelectorAll(`.highlighted-text`).forEach((el) => {
+				el.outerHTML = el.innerHTML;
+			});
+			const result = highlightText(
+				value,
+				options.caseSensitive || false,
+				options.wholeWord || false,
+				false,
+				false,
+				true
+			);
+			if (result.moveToNextMatchAvailable) {
+				updateInstanceCountDisplay(result.initialInstanceCount);
+				window.addEventListener('keypress', (event) => {
+					if (event.key === 'Enter') {
+						event.preventDefault();
+						if (result.moveToNextMatch) {
+							const newInstanceCount = result.moveToNextMatch();
+							updateInstanceCountDisplay(newInstanceCount);
+						}
+					}
+				});
+			}
+		} catch (error) {
+			console.error('Highlighting failed:', error);
+		}
+	}
+
+	function findOnPage(
+		value: string,
+		options: { caseSensitive?: boolean; wholeWord?: boolean } = {}
+	): void {
+		if (!value.trim) {
+			return;
+		}
+		tabs.forEach((tab) => {
+			const webview = webviewRefs.current[tab.id];
+			if (webview && webview.src !== '') {
+				findInWebview(webview, value, options);
+			} else if (historyRef.current) {
+				findInHistoryPage(value, options);
+			} else if (downloadsRef.current) {
+				findInDownloadsPage(value, options);
+			} else if (themesRef.current) {
+				findInThemesPage(value, options);
+			}
+		});
+	}
+
+	function setupKeypressListener(webview: Electron.WebviewTag): void {
+		// Remove existing listener if any
+		window.removeEventListener('keyup', handleKeyPress);
+
+		// Add new listener
+		window.addEventListener('keyup', handleKeyPress);
+
+		function handleKeyPress(event: KeyboardEvent): void {
+			if (event.key === 'Enter') {
+				event.preventDefault();
+				webview.executeJavaScript('window.moveToNextMatch()').then((newInstanceCount) => {
+					updateInstanceCountDisplay(newInstanceCount);
+				});
+			}
+		}
+	}
+
+	function updateInstanceCountDisplay(instanceCount: string): void {
+		setFindInstanceCount(instanceCount);
+		// if (instanceCount == '0/0') {
+		// 	findOnPage('', { caseSensitive: false, wholeWord: false });
+		// }
+	}
 
 	function getFileExtension(filePath: string): string {
 		// Split the filePath by the path separator and get the last part (the filename)
@@ -866,7 +1208,6 @@ function App(): JSX.Element {
 
 	const handleResumeDownload = (id: number): void => {
 		ipcRenderer.send('RESUME_DOWNLOAD', id);
-		console.log('clicked');
 	};
 
 	function getDirectoryPath(fullPath: string): string {
@@ -918,6 +1259,34 @@ function App(): JSX.Element {
 	const removeDownload = (id): void => {
 		ipcRenderer.send('REMOVE_DOWNLOAD', id);
 	};
+
+	function handleToggleFindBox(): void {
+		setFindBoxVisibility((prevVisibility) => {
+			const newVisibility = !prevVisibility;
+			if (newVisibility && findBoxRef.current) {
+				findBoxRef.current.focus();
+			}
+			if (!newVisibility) {
+				findOnPage('', {
+					caseSensitive: false,
+					wholeWord: false
+				});
+			}
+			return newVisibility;
+		});
+	}
+
+	useEffect(() => {
+		const handleFind = (): void => {
+			handleToggleFindBox();
+		};
+
+		ipcRenderer.on('find', handleFind);
+
+		return (): void => {
+			ipcRenderer.removeListener('find', handleFind);
+		};
+	}, []);
 
 	useEffect(() => {
 		ipcRenderer.on('new-tab', () => {
@@ -1074,6 +1443,23 @@ function App(): JSX.Element {
 					}
 				};
 
+				// 				webview.addEventListener('dom-ready', () => {
+				// 					// Execute JavaScript in the webview context to get the text content
+				// 					webview
+				// 						.executeJavaScript(
+				// 							`
+				//     // Get all the text content from the page
+				//     document.body.innerText;
+				//   `
+				// 						)
+				// 						.then((textContent) => {
+				// 							setWebviewTextContent(textContent);
+				// 						})
+				// 						.catch((error) => {
+				// 							console.error('Failed to get text content:', error);
+				// 						});
+				// 				});
+
 				webview.addEventListener('did-finish-load', updateTabInfo);
 				webview.addEventListener('did-start-navigation', handleAboutToNavigate);
 				webview.addEventListener('page-title-updated', updateTabInfo);
@@ -1108,7 +1494,11 @@ function App(): JSX.Element {
 				}
 			});
 		};
-	}, [tabs[activeTabIndex], tabs]);
+	}, [tabs]);
+
+	useEffect(() => {
+		activeTabIndex = tabs.findIndex((tab) => tab.id === activeTab);
+	}, [tabs]);
 
 	useEffect(() => {
 		if (tabs[activeTabIndex]?.url === 'cobalt://history') {
@@ -1188,6 +1578,8 @@ function App(): JSX.Element {
 				searchFormRef.current &&
 				!searchRecommendationRef.current.contains(event.target as Node) &&
 				!searchFormRef.current.contains(event.target as Node);
+			const clickedOutsideFindBox =
+				findBoxRef.current && !findBoxRef.current.contains(event.target as Node);
 
 			if (clickedOnThemeForm) {
 				setShowThemeForm(false);
@@ -1204,14 +1596,18 @@ function App(): JSX.Element {
 			if (clickedOutsideSearchRecommendation) {
 				setShowRecommendations(false);
 			}
+			if (clickedOutsideFindBox) {
+				setFindBoxVisibility(false);
+				if (findBoxRef.current) {
+					findOnPage('', {
+						caseSensitive: false,
+						wholeWord: false
+					});
+				}
+			}
 		};
 
 		document.addEventListener('mousedown', handleClickOutside);
-		// const webview = webviewRefs.current[activeTab];
-		//  console.log(webview);
-		// if (webview) {
-		// 	webview.addEventListener('click', handleClickOutside);
-		// }
 
 		return (): void => {
 			document.removeEventListener('mousedown', handleClickOutside);
@@ -1290,7 +1686,7 @@ function App(): JSX.Element {
 					<div className="tabs" draggable={false}>
 						{tabs.map((tab, index) => (
 							<div
-								key={tab.id}
+								key={tab.key}
 								onClick={() => setActivePage(tab.id)}
 								className={`tab ${activeTab === tab.id ? 'active' : ''} ${
 									isDragging && draggedTab === index ? 'dragging' : ''
@@ -1302,7 +1698,7 @@ function App(): JSX.Element {
 								onDragLeave={() => handleDragLeave()}
 								onDragEnd={() => handleDragEnd()}
 								onDrop={(e) => handleDrop(e, index)}
-								title={tab.name}
+								title={tab.name + '' + tab.id}
 							>
 								<span className="tabName">{tab.name}</span>
 								<button onClick={() => closeTab(tab.id)} className="close-tab">
@@ -1425,15 +1821,15 @@ function App(): JSX.Element {
 					{showRecommendations ? (
 						<ul className="search-recommendations" ref={searchRecommendationRef}>
 							{recommendations.map((recommendation, index) => (
-								<li key={index} className="search-recommendation">
-									<button
-										className="recommendation-btn"
-										onClick={() => {
-											handleSearchSuggestion(recommendation);
-										}}
-									>
-										{recommendation}
-									</button>
+								<li
+									key={index}
+									className="search-recommendation"
+									onClick={() => {
+										handleSearchSuggestion(recommendation);
+										setShowRecommendations(false);
+									}}
+								>
+									<button className="recommendation-btn">{recommendation}</button>
 								</li>
 							))}
 						</ul>
@@ -1692,7 +2088,7 @@ function App(): JSX.Element {
 					/>
 				))}
 				{tabs[activeTabIndex]?.url === 'cobalt://history' && (
-					<div className="history-page">
+					<div className="history-page" ref={historyRef}>
 						<h1>History</h1>
 						<ul className="history-list">
 							{history.sites.map((site, index) => (
@@ -1730,7 +2126,7 @@ function App(): JSX.Element {
 					</div>
 				)}
 				{tabs[activeTabIndex]?.url === 'cobalt://downloads' && (
-					<div className="downloads-page">
+					<div className="downloads-page" ref={downloadsRef}>
 						<h1>Downloads</h1>
 						<ul className="downloads-list">
 							{downloads.map((download, index) => (
@@ -1840,7 +2236,7 @@ function App(): JSX.Element {
 					</div>
 				)}
 				{tabs[activeTabIndex]?.url === 'cobalt://themes' && (
-					<div className="themes-page">
+					<div className="themes-page" ref={themesRef}>
 						<h1>Themes</h1>
 						<ul className="themes-list">
 							{themes.map((theme, index) => (
@@ -1899,6 +2295,36 @@ function App(): JSX.Element {
 							Add theme
 						</button>
 					</div>
+				)}
+				{findBoxVisibility && (
+					<label className="find-box">
+						<input
+							type="text"
+							ref={findBoxRef}
+							autoFocus
+							spellCheck="false"
+							placeholder="Search for something"
+							onInputCapture={(e) => {
+								e.preventDefault();
+								if (findBoxRef.current) {
+									findOnPage(findBoxRef.current.value, {
+										caseSensitive: false,
+										wholeWord: false
+									});
+								}
+							}}
+						/>
+						{findInstanceCount}
+						<button
+							onClick={() => {
+								setFindBoxVisibility(false);
+							}}
+						>
+							<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512">
+								<path d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3 297.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256 342.6 150.6z" />
+							</svg>
+						</button>
+					</label>
 				)}
 				{showThemeForm && (
 					<div className="new-theme" ref={themeFormRef}>

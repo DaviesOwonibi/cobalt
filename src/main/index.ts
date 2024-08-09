@@ -602,8 +602,8 @@ function createWindow(x: number, y: number, width: number, height: number): void
 			mainWindow.webContents.send('close-active-tab');
 			return false;
 		});
-		globalShortcut.register('CmdOrCtrl+Q', () => {
-			mainWindow.webContents.send('close-active-tab');
+		globalShortcut.register('CmdOrCtrl+F', () => {
+			mainWindow.webContents.send('find');
 			return false;
 		});
 		globalShortcut.register('CmdOrCtrl+=', () => {
