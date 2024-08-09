@@ -11,5 +11,6 @@ interface WebviewProps extends React.ComponentProps<'webview'> {
 const Webview = forwardRef<WebviewTag, WebviewProps>((props, ref) => (
 	<webview ref={ref} {...props} />
 ));
+Webview.displayName = 'Webview';
 
 export default Webview;

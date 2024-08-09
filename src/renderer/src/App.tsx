@@ -54,6 +54,22 @@ interface Download {
 	savePath: string;
 }
 
+type HighlightResult = {
+	count: number;
+	moveToNextMatchAvailable: boolean;
+	initialInstanceCount: string;
+	moveToNextMatch?: () => string;
+};
+
+type HighlightText = (
+	textToHighlight: string,
+	caseSensitive: boolean,
+	wholeWord: boolean,
+	historyPage?: boolean,
+	downloadsPage?: boolean,
+	themesPage?: boolean
+) => HighlightResult;
+
 function App(): JSX.Element {
 	const [idCounter, setIdCounter] = useState(1);
 	const [tabs, setTabs] = useState<Tab[]>([{ name: 'New Tab', url: '', id: 0, key: `tab-0` }]);
@@ -628,7 +644,7 @@ function App(): JSX.Element {
 
 	// Utility functions
 
-	const highlightText = (
+	const highlightText: HighlightText = (
 		textToHighlight: string,
 		caseSensitive: boolean,
 		wholeWord: boolean,
