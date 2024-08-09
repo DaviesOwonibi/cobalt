@@ -302,8 +302,7 @@ function App(): JSX.Element {
 
 	function closeTab(id: number): void {
 		setTabs((prevTabs) => {
-			const closingTabIndex = getTabIndexFromId(id);
-			const closingTab = tabs[closingTabIndex];
+			const closingTab = tabs[getTabIndexFromId(id)];
 			setLastTab(closingTab);
 			const newTabs = prevTabs.filter((tab) => tab.id !== id);
 
@@ -313,21 +312,10 @@ function App(): JSX.Element {
 				return prevTabs;
 			}
 
-			// If the closed tab was the active one
+			// If the closed tab was the active one, set a new active tab
 			if (activeTab === id) {
-				let newActiveTab;
-
-				// Check if there is a tab on the right
-				if (closingTabIndex < newTabs.length) {
-					newActiveTab = newTabs[closingTabIndex]; // Right tab
-				} else if (closingTabIndex > 0) {
-					newActiveTab = newTabs[closingTabIndex - 1]; // Left tab
-				}
-
-				if (newActiveTab) {
-					setSearchInput(newActiveTab.url);
-					setActiveTab(newActiveTab.id);
-				}
+				setSearchInput(newTabs[newTabs.length - 1].url);
+				setActiveTab(newTabs[newTabs.length - 1].id);
 			} else {
 				setActiveTab(newTabs[getTabIndexFromId(id)].id);
 			}
@@ -826,7 +814,7 @@ function App(): JSX.Element {
 				updateInstanceCountDisplay(result.initialInstanceCount);
 				window.addEventListener('keypress', (event) => {
 					if (event.key === 'Enter') {
-						event.preventDefault();
+						// event.preventDefault();
 						if (result.moveToNextMatch) {
 							const newInstanceCount = result.moveToNextMatch();
 							updateInstanceCountDisplay(newInstanceCount);
@@ -858,7 +846,7 @@ function App(): JSX.Element {
 				updateInstanceCountDisplay(result.initialInstanceCount);
 				window.addEventListener('keypress', (event) => {
 					if (event.key === 'Enter') {
-						event.preventDefault();
+						// event.preventDefault();
 						if (result.moveToNextMatch) {
 							const newInstanceCount = result.moveToNextMatch();
 							updateInstanceCountDisplay(newInstanceCount);
@@ -891,7 +879,7 @@ function App(): JSX.Element {
 				updateInstanceCountDisplay(result.initialInstanceCount);
 				window.addEventListener('keypress', (event) => {
 					if (event.key === 'Enter') {
-						event.preventDefault();
+						// event.preventDefault();
 						if (result.moveToNextMatch) {
 							const newInstanceCount = result.moveToNextMatch();
 							updateInstanceCountDisplay(newInstanceCount);
@@ -934,7 +922,7 @@ function App(): JSX.Element {
 
 		function handleKeyPress(event: KeyboardEvent): void {
 			if (event.key === 'Enter') {
-				event.preventDefault();
+				// event.preventDefault();
 				webview.executeJavaScript('window.moveToNextMatch()').then((newInstanceCount) => {
 					updateInstanceCountDisplay(newInstanceCount);
 				});
@@ -1698,7 +1686,7 @@ function App(): JSX.Element {
 								onDragLeave={() => handleDragLeave()}
 								onDragEnd={() => handleDragEnd()}
 								onDrop={(e) => handleDrop(e, index)}
-								title={tab.name + '' + tab.id}
+								title={tab.name}
 							>
 								<span className="tabName">{tab.name}</span>
 								<button onClick={() => closeTab(tab.id)} className="close-tab">

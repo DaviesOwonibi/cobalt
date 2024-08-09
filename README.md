@@ -2,36 +2,47 @@
 
 An Electron-based browser made with React and TypeScript
 
-<img src="./resources/cobalt-1.png" alt="Picture of Cobalt" />
-<img src="./resources/cobalt-2.png" alt="Picture of Unmaximized Cobalt" />
+# Themes
 
-## Recommended IDE Setup
+<img src="./resources/catppuccin.png" alt="Picture of Catppuccin Cobalt" />
 
--   [VSCode](https://code.visualstudio.com/) + [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint) + [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode)
+## Features
 
-## Project Setup
+Basic Navigation
+History Management
+Download Management
+Custom Themes
+Adblock Comes By Default
 
-### Install
+## Shortcuts
 
-```bash
-$ npm install
-```
+Ctrl + Y &rarr; Themes
+Ctrl + H &rarr; History
+Ctrl + J &rarr; Downloads
+Ctrl + F &rarr; Find
+Ctrl + T &rarr; Open new tab
+Ctrl + Shift + T &rarr; Open previously closed tab
+Ctrl + W &rarr; Close tab
+Ctrl + 1...9 &rarr; Go to corresponding tab
+Ctrl + + &rarr; Zoom in
+Ctrl + - &rarr; Zoom out
+Ctrl + 0 &rarr; Reset Zoom
+Ctrl + Shift + I &rarr; Open devtools
 
-### Development
+## Themes
 
-```bash
-$ npm run dev
-```
+### Catppuccin
 
-### Build
+<img src="./resources/catppuccin.png" alt="Picture of Catppuccin Cobalt" />
 
-```bash
-# For windows
-$ npm run build:win
+### One Dark Pro
 
-# For macOS
-$ npm run build:mac
+<img src="./resources/onedarkpro.png" alt="Picture of One Dark Pro Cobalt" />
 
-# For Linux
-$ npm run build:linux
-```
+### Github Dark
+
+<img src="./resources/githubdark.png" alt="Picture of Github Dark Cobalt" />
+
+### Tokyo Night
+
+<img src="./resources/tokyonight.png" alt="Picture of Tokyo Night Cobalt" />
