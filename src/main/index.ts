@@ -17,9 +17,7 @@ import icon from '../../resources/icon.png?asset';
 import Store from '../preload/store';
 import { existsSync } from 'fs';
 
-ElectronBlocker.fromPrebuiltAdsAndTracking(fetch).then((blocker) => {
-	blocker.enableBlockingInSession(session.defaultSession);
-});
+const blocker = ElectronBlocker.fromPrebuiltAdsOnly(fetch);
 
 interface Download extends Partial<Electron.DownloadItem> {
 	id: number;
@@ -38,6 +36,7 @@ const settingsStore = new Store({
 	defaults: {
 		windowBounds: { width: 900, height: 670 },
 		position: { x: 0, y: 0 },
+		fullscreen: false,
 		activeTheme: 'Catppuccin'
 	}
 });
@@ -150,7 +149,13 @@ const downloadsStore = new Store({
 	}
 });
 
-function createWindow(x: number, y: number, width: number, height: number): void {
+function createWindow(
+	x: number,
+	y: number,
+	width: number,
+	height: number,
+	fullscreen: boolean
+): void {
 	const mainWindow = new BrowserWindow({
 		x,
 		y,
@@ -170,6 +175,14 @@ function createWindow(x: number, y: number, width: number, height: number): void
 			contextIsolation: false
 		}
 	});
+
+	if (fullscreen) {
+		mainWindow.maximize();
+		mainWindow.webContents.send('maximized');
+	} else {
+		mainWindow.minimize();
+		mainWindow.webContents.send('unmaximized');
+	}
 
 	mainWindow.setMenu(null);
 	mainWindow.webContents.openDevTools();
@@ -327,10 +340,17 @@ function createWindow(x: number, y: number, width: number, height: number): void
 
 	mainWindow.on('unmaximize', () => {
 		mainWindow.webContents.send('unmaximized');
+		settingsStore.set('fullscreen', false);
 	});
 
 	mainWindow.on('maximize', () => {
 		mainWindow.webContents.send('maximized');
+		settingsStore.set('fullscreen', true);
+	});
+
+	mainWindow.on('enter-full-screen', () => {
+		mainWindow.webContents.send('maximized');
+		settingsStore.set('fullscreen', true);
 	});
 
 	mainWindow.webContents.on('did-stop-loading', () => {
@@ -369,6 +389,43 @@ function createWindow(x: number, y: number, width: number, height: number): void
 
 	ipcMain.handle('OPEN_FOLDER', (_event, folderPath) => {
 		shell.openPath(folderPath);
+	});
+
+	ipcMain.on('UPDATE_ADBLOCKER', async (_event, args: { status: boolean }) => {
+		try {
+			// Send initial loading state
+			mainWindow.webContents.send('ADBLOCKER_LOADING', true);
+
+			// Load the blocker
+			mainWindow.webContents.send('ADBLOCKER_LOADING_STATUS', 'Loading blocker...');
+
+			// Enable blocking in session
+			mainWindow.webContents.send(
+				'ADBLOCKER_LOADING_STATUS',
+				'Enabling blocking in session...'
+			);
+			const instance = (await blocker).enableBlockingInSession(session.defaultSession);
+
+			// Enable or disable based on args
+			if (args.status === true) {
+				mainWindow.webContents.send('ADBLOCKER_LOADING_STATUS', 'Enabling adblocker...');
+				instance.enable();
+			} else {
+				mainWindow.webContents.send('ADBLOCKER_LOADING_STATUS', 'Disabling adblocker...');
+				instance.disable();
+			}
+
+			// Send completion message
+			mainWindow.webContents.send('ADBLOCKER_STATUS', 'Adblocker update complete');
+			mainWindow.webContents.send('ADBLOCKER_LOADING', false);
+
+			// Reload webview
+			mainWindow.webContents.send('reload-webview');
+		} catch (error) {
+			console.error('Error updating adblocker:', error);
+			mainWindow.webContents.send('ADBLOCKER_LOADING', false);
+			mainWindow.webContents.send('ADBLOCKER_STATUS', 'Error updating adblocker');
+		}
 	});
 
 	ipcMain.on('CLEAR_DOWNLOADS', () => {
@@ -756,6 +813,7 @@ app.whenReady().then(() => {
 		width: number;
 		height: number;
 	};
+	const fullscreen = settingsStore.get('fullscreen') as boolean;
 	const { x, y } = settingsStore.get('position') as { x: number; y: number };
 	electronApp.setAppUserModelId('com.cobalt');
 
@@ -763,11 +821,11 @@ app.whenReady().then(() => {
 		optimizer.watchWindowShortcuts(window);
 	});
 
-	createWindow(x, y, width, height);
+	createWindow(x, y, width, height, fullscreen);
 
 	app.on('activate', () => {
 		if (BrowserWindow.getAllWindows().length === 0) {
-			createWindow(x, y, width, height);
+			createWindow(x, y, width, height, fullscreen);
 		}
 	});
 
@@ -779,7 +837,14 @@ app.whenReady().then(() => {
 		callback({
 			responseHeaders: {
 				...details.responseHeaders,
-				'Content-Security-Policy': ["connect-src 'self' https://api.allorigins.win"]
+				'Content-Security-Policy': [
+					`default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;
+					script-src * 'unsafe-inline' 'unsafe-eval';
+					connect-src * 'unsafe-inline' data:;
+					img-src * data: blob: 'unsafe-inline';
+					frame-src *;
+					style-src * 'unsafe-inline';`
+				]
 			}
 		});
 	});

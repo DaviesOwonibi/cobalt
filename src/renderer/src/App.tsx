@@ -32,6 +32,12 @@ import svg from './assets/icons/downloadIcons/svg.png';
 import txt from './assets/icons/downloadIcons/txt.png';
 import zip from './assets/icons/downloadIcons/zip.png';
 
+enum InstanceCountType {
+	WEBVIEW,
+	THEMES,
+	DOWNLOADS,
+	HISTORY
+}
 interface Tab {
 	name: string;
 	url: string;
@@ -71,6 +77,9 @@ type HighlightText = (
 ) => HighlightResult;
 
 function App(): JSX.Element {
+	const [isAdBlockerLoading, setIsAdBlockerLoading] = useState(false);
+	const [adBlockerLoadingStatus, setAdBlockerLoadingStatus] = useState('');
+	const [adBlockerStatus, setAdBlockerStatus] = useState(false);
 	const [idCounter, setIdCounter] = useState(1);
 	const [tabs, setTabs] = useState<Tab[]>([{ name: 'New Tab', url: '', id: 0, key: `tab-0` }]);
 	const [activeTab, setActiveTab] = useState<number>(0);
@@ -92,7 +101,10 @@ function App(): JSX.Element {
 	const [canGoBack, setCanGoBack] = useState(false);
 	const [canGoForward, setCanGoForward] = useState(false);
 	const [recommendations, setRecommendations] = useState([]);
-	const [findInstanceCount, setFindInstanceCount] = useState('');
+	const [webviewInstanceCount, setWebviewInstanceCount] = useState('');
+	const [downloadsInstanceCount, setDownloadsInstanceCount] = useState('');
+	const [historyInstanceCount, setHistoryInstanceCount] = useState('');
+	const [themesInstanceCount, setThemesInstanceCount] = useState('');
 	const [history, setHistory] = useState<{
 		sites: string[];
 		timestamps: number[];
@@ -250,7 +262,7 @@ function App(): JSX.Element {
 
 		// After the tab is added and the webview is created
 		const webview = webviewRefs.current[newTab.id];
-		if (webview) {
+		if (webview && webview.src !== '') {
 			webview.addEventListener('page-title-updated', (event) => {
 				setTabs((prevTabs) =>
 					prevTabs.map((tab) =>
@@ -393,6 +405,20 @@ function App(): JSX.Element {
 		});
 	}
 
+	function handleAdBlocker(): void {
+		if (adBlockerStatus) {
+			ipcRenderer.send('UPDATE_ADBLOCKER', {
+				status: false
+			});
+			setAdBlockerStatus(false);
+		} else {
+			ipcRenderer.send('UPDATE_ADBLOCKER', {
+				status: true
+			});
+			setAdBlockerStatus(true);
+		}
+	}
+
 	function removeHistoryItem(site: string): void {
 		ipcRenderer.send('REMOVE_HISTORY_ITEM', site);
 		fetchHistory();
@@ -526,7 +552,7 @@ function App(): JSX.Element {
 			const httpsPattern = /\b(?:https?:\/\/|www\.)[^\s/$.?#].[^\s]*\b/;
 			const tldPattern =
 				/(https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z0-9]{2,}(\.[a-zA-Z0-9]{2,})(\.[a-zA-Z0-9]{2,})?/;
-			const localhostPattern = /^localhost:\d+$/;
+			const localhostPattern = /^(https?:\/\/)?localhost:\d+(\/)?$/;
 			const cobaltPattern = /^cobalt:\/\/[a-z]/;
 			const googleSearchPattern = /^(?!https?:\/\/|www\.).+\s?.*$/;
 			let newUrl: string = '';
@@ -556,7 +582,7 @@ function App(): JSX.Element {
 			setShowRecommendations(false);
 			setTabs(updatedTabs);
 			const webview = webviewRefs.current[activeTab];
-			if (webview) {
+			if (webview && !cobaltPattern.test(newUrl) && !localhostPattern.test(newUrl)) {
 				webview.loadURL(newUrl);
 				const title = await getTitle(newUrl);
 				addToHistory(newUrl, title);
@@ -607,28 +633,28 @@ function App(): JSX.Element {
 
 	const handleGoBack = (): void => {
 		const webview = webviewRefs.current[activeTab];
-		if (webview && canGoBack) {
+		if (webview && canGoBack && webview.src !== '') {
 			webview.goBack();
 		}
 	};
 
 	const handleGoForward = (): void => {
 		const webview = webviewRefs.current[activeTab];
-		if (webview && canGoForward) {
+		if (webview && canGoForward && webview.src !== '') {
 			webview.goForward();
 		}
 	};
 
 	const handleReload = (): void => {
 		const webview = webviewRefs.current[activeTab];
-		if (webview) {
+		if (webview && webview.src !== '') {
 			webview.reload();
 		}
 	};
 
 	const handleInspect = (): void => {
 		const webview = webviewRefs.current[activeTab];
-		if (webview) {
+		if (webview && webview.src !== '') {
 			webview.openDevTools();
 		}
 	};
@@ -676,7 +702,7 @@ function App(): JSX.Element {
 
 		const removeHighlights = (rootElement: HTMLElement | null): void => {
 			rootElement?.querySelectorAll(`.${markClass}`).forEach((el) => {
-				el.outerHTML = el.innerHTML;
+				el.outerHTML = el.innerHTML.toString();
 			});
 		};
 
@@ -696,12 +722,24 @@ function App(): JSX.Element {
 		if (wholeWord) regexStr = `\\b${regexStr}\\b`;
 		const regex = new RegExp(regexStr, caseSensitive ? 'g' : 'gi');
 
+		const isVisible = (element: HTMLElement): boolean => {
+			return !!(
+				element.offsetWidth ||
+				element.offsetHeight ||
+				element.getClientRects().length
+			);
+		};
+
 		const walker = document.createTreeWalker(rootElement, NodeFilter.SHOW_TEXT, {
 			acceptNode: (node) => {
 				if (
 					node.parentNode &&
 					['TEXTAREA', 'INPUT', 'SCRIPT', 'STYLE'].includes(node.parentNode.nodeName)
 				) {
+					return NodeFilter.FILTER_REJECT;
+				}
+				const parentElement = node.parentElement as HTMLElement;
+				if (parentElement && !isVisible(parentElement)) {
 					return NodeFilter.FILTER_REJECT;
 				}
 				return NodeFilter.FILTER_ACCEPT;
@@ -736,7 +774,9 @@ function App(): JSX.Element {
 				}
 			});
 
-			node.parentNode?.replaceChild(fragment, node);
+			if (node.parentNode) {
+				node.parentNode.replaceChild(fragment, node);
+			}
 		});
 
 		const highlightCurrent = (): void => {
@@ -751,8 +791,11 @@ function App(): JSX.Element {
 				let element = matches[currentIndex] as HTMLElement;
 				while (element) {
 					if (element.scrollIntoView) {
-						element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-						rootElement.scrollIntoView({ behavior: 'smooth', block: 'end' });
+						console.log(matches);
+						element.scrollIntoView({ behavior: 'auto', block: 'center' });
+						if (historyPage || themesPage || historyPage) {
+							rootElement?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+						}
 						break;
 					}
 					element = element.parentElement as HTMLElement;
@@ -804,8 +847,8 @@ function App(): JSX.Element {
 		webview.insertCSS('.current-highlight {background-color: orange}');
 		webview.executeJavaScript(jsCode).then((result) => {
 			if (result.moveToNextMatchAvailable) {
-				setupKeypressListener(webview);
-				updateInstanceCountDisplay(result.initialInstanceCount);
+				setupKeypressListener(webview, InstanceCountType.WEBVIEW);
+				updateInstanceCountDisplay(result.initialInstanceCount, InstanceCountType.WEBVIEW);
 			}
 		});
 	}
@@ -816,7 +859,7 @@ function App(): JSX.Element {
 	): void {
 		try {
 			document.querySelectorAll(`.highlighted-text`).forEach((el) => {
-				el.outerHTML = el.innerHTML;
+				el.outerHTML = el.innerHTML.toString();
 			});
 
 			// historyRef.current.remove
@@ -827,13 +870,13 @@ function App(): JSX.Element {
 				true
 			);
 			if (result.moveToNextMatchAvailable) {
-				updateInstanceCountDisplay(result.initialInstanceCount);
-				window.addEventListener('keypress', (event) => {
+				updateInstanceCountDisplay(result.initialInstanceCount, InstanceCountType.HISTORY);
+				historyRef.current?.addEventListener('keypress', (event) => {
 					if (event.key === 'Enter') {
 						// event.preventDefault();
 						if (result.moveToNextMatch) {
 							const newInstanceCount = result.moveToNextMatch();
-							updateInstanceCountDisplay(newInstanceCount);
+							updateInstanceCountDisplay(newInstanceCount, InstanceCountType.HISTORY);
 						}
 					}
 				});
@@ -849,7 +892,7 @@ function App(): JSX.Element {
 	): void {
 		try {
 			document.querySelectorAll(`.highlighted-text`).forEach((el) => {
-				el.outerHTML = el.innerHTML;
+				el.outerHTML = el.innerHTML.toString();
 			});
 			const result = highlightText(
 				value,
@@ -859,13 +902,19 @@ function App(): JSX.Element {
 				true
 			);
 			if (result.moveToNextMatchAvailable) {
-				updateInstanceCountDisplay(result.initialInstanceCount);
-				window.addEventListener('keypress', (event) => {
+				updateInstanceCountDisplay(
+					result.initialInstanceCount,
+					InstanceCountType.DOWNLOADS
+				);
+				downloadsRef.current?.addEventListener('keypress', (event) => {
 					if (event.key === 'Enter') {
 						// event.preventDefault();
 						if (result.moveToNextMatch) {
 							const newInstanceCount = result.moveToNextMatch();
-							updateInstanceCountDisplay(newInstanceCount);
+							updateInstanceCountDisplay(
+								newInstanceCount,
+								InstanceCountType.DOWNLOADS
+							);
 						}
 					}
 				});
@@ -881,7 +930,7 @@ function App(): JSX.Element {
 	): void {
 		try {
 			document.querySelectorAll(`.highlighted-text`).forEach((el) => {
-				el.outerHTML = el.innerHTML;
+				el.outerHTML = el.innerHTML.toString();
 			});
 			const result = highlightText(
 				value,
@@ -892,13 +941,13 @@ function App(): JSX.Element {
 				true
 			);
 			if (result.moveToNextMatchAvailable) {
-				updateInstanceCountDisplay(result.initialInstanceCount);
+				updateInstanceCountDisplay(result.initialInstanceCount, InstanceCountType.THEMES);
 				window.addEventListener('keypress', (event) => {
 					if (event.key === 'Enter') {
 						// event.preventDefault();
 						if (result.moveToNextMatch) {
 							const newInstanceCount = result.moveToNextMatch();
-							updateInstanceCountDisplay(newInstanceCount);
+							updateInstanceCountDisplay(newInstanceCount, InstanceCountType.THEMES);
 						}
 					}
 				});
@@ -915,42 +964,64 @@ function App(): JSX.Element {
 		if (!value.trim) {
 			return;
 		}
-		tabs.forEach((tab) => {
-			const webview = webviewRefs.current[tab.id];
-			if (webview && webview.src !== '') {
+		tabs.forEach(() => {
+			const webview = webviewRefs.current[activeTab];
+			if (
+				webview &&
+				webview.src !== '' &&
+				!historyRef.current &&
+				!downloadsRef.current &&
+				!themesRef.current
+			) {
 				findInWebview(webview, value, options);
-			} else if (historyRef.current) {
+			} else if (historyRef.current && !downloadsRef.current && !themesRef.current) {
 				findInHistoryPage(value, options);
-			} else if (downloadsRef.current) {
+			} else if (downloadsRef.current && !historyRef.current && !themesRef.current) {
 				findInDownloadsPage(value, options);
-			} else if (themesRef.current) {
+			} else if (themesRef.current && !downloadsRef.current && !historyRef.current) {
 				findInThemesPage(value, options);
 			}
 		});
 	}
 
-	function setupKeypressListener(webview: Electron.WebviewTag): void {
+	function setupKeypressListener(webview: Electron.WebviewTag, type: InstanceCountType): void {
 		// Remove existing listener if any
-		window.removeEventListener('keyup', handleKeyPress);
+		window.removeEventListener('keypress', handleKeyPress);
 
 		// Add new listener
-		window.addEventListener('keyup', handleKeyPress);
+		window.addEventListener('keypress', handleKeyPress);
 
 		function handleKeyPress(event: KeyboardEvent): void {
 			if (event.key === 'Enter') {
 				// event.preventDefault();
 				webview.executeJavaScript('window.moveToNextMatch()').then((newInstanceCount) => {
-					updateInstanceCountDisplay(newInstanceCount);
+					updateInstanceCountDisplay(newInstanceCount, type);
 				});
 			}
 		}
 	}
 
-	function updateInstanceCountDisplay(instanceCount: string): void {
-		setFindInstanceCount(instanceCount);
-		// if (instanceCount == '0/0') {
-		// 	findOnPage('', { caseSensitive: false, wholeWord: false });
-		// }
+	function updateInstanceCountDisplay(
+		instanceCount: string,
+		instanceCountType: InstanceCountType
+	): void {
+		switch (instanceCountType) {
+			case InstanceCountType.WEBVIEW:
+				setWebviewInstanceCount(instanceCount);
+				break;
+			case InstanceCountType.DOWNLOADS:
+				setDownloadsInstanceCount(instanceCount);
+				break;
+			case InstanceCountType.THEMES:
+				setThemesInstanceCount(instanceCount);
+				break;
+			case InstanceCountType.HISTORY:
+				setHistoryInstanceCount(instanceCount);
+				break;
+
+			default:
+				break;
+		}
 	}
 
 	function getFileExtension(filePath: string): string {
@@ -1085,7 +1156,13 @@ function App(): JSX.Element {
 	}
 
 	const fetchRecommendations = async (): Promise<void> => {
-		if (searchInput) {
+		const localhostPattern = /^(https?:\/\/)?localhost:\d+(\/)?$/;
+		const cobaltPattern = /^cobalt:\/\/[a-z]/;
+		if (
+			searchInput &&
+			!localhostPattern.test(searchInput) &&
+			!cobaltPattern.test(searchInput)
+		) {
 			try {
 				const googleSuggestUrl = `https://suggestqueries.google.com/complete/search?client=chrome&q=${encodeURIComponent(searchInput)}`;
 				const allOriginsUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(googleSuggestUrl)}`;
@@ -1293,6 +1370,13 @@ function App(): JSX.Element {
 	}, []);
 
 	useEffect(() => {
+		ipcRenderer.on('ADBLOCKER_LOADING', (_event, loading) => {
+			setIsAdBlockerLoading(loading);
+		});
+
+		ipcRenderer.on('ADBLOCKER_LOADING_STATUS', (_event, status) => {
+			setAdBlockerLoadingStatus(status);
+		});
 		ipcRenderer.on('new-tab', () => {
 			addTab();
 		});
@@ -1369,7 +1453,7 @@ function App(): JSX.Element {
 		});
 		tabs.forEach((tab) => {
 			const webview = webviewRefs.current[tab.id];
-			if (webview) {
+			if (webview && webview.src !== '') {
 				webview.addEventListener('context-menu', (event) => {
 					ipcRenderer.send('show-context-menu', {
 						x: event.params.x,
@@ -1472,6 +1556,8 @@ function App(): JSX.Element {
 
 		const removeListener = ipcRenderer.on('context-menu-command', handleContextMenuCommand);
 		return (): void => {
+			ipcRenderer.removeAllListeners('ADBLOCKER_LOADING');
+			ipcRenderer.removeAllListeners('ADBLOCKER_STATUS');
 			ipcRenderer.removeAllListeners('new-tab');
 			ipcRenderer.removeAllListeners('new-history-tab');
 			ipcRenderer.removeAllListeners('close-active-tab');
@@ -1488,7 +1574,7 @@ function App(): JSX.Element {
 			ipcRenderer.removeAllListeners('reload-webview');
 			tabs.forEach((tab) => {
 				const webview = webviewRefs.current[tab.id];
-				if (webview) {
+				if (webview && webview.src !== '') {
 					webview.removeEventListener('did-finish-load', () => {});
 					webview.removeEventListener('did-navigate', () => {});
 					webview.removeEventListener('page-title-updated', () => {});
@@ -1615,9 +1701,6 @@ function App(): JSX.Element {
 
 		return (): void => {
 			document.removeEventListener('mousedown', handleClickOutside);
-			// if (webview) {
-			// 	webview.removeEventListener('click', handleClickOutside);
-			// }
 		};
 	}, [showThemeForm, settingsVisibility, showRecommendations, downloadsVisibility, activeTab]);
 
@@ -1691,7 +1774,14 @@ function App(): JSX.Element {
 						{tabs.map((tab, index) => (
 							<div
 								key={tab.key}
-								onClick={() => setActivePage(tab.id)}
+								onClick={() => {
+									setFindBoxVisibility(false);
+									findOnPage('', {
+										caseSensitive: false,
+										wholeWord: false
+									});
+									setActivePage(tab.id);
+								}}
 								className={`tab ${activeTab === tab.id ? 'active' : ''} ${
 									isDragging && draggedTab === index ? 'dragging' : ''
 								} ${draggedOverTab === index ? 'drag-over' : ''}`}
@@ -1705,7 +1795,11 @@ function App(): JSX.Element {
 								title={tab.name}
 							>
 								<span className="tabName">{tab.name}</span>
-								<button onClick={() => closeTab(tab.id)} className="close-tab">
+								<button
+									aria-label="close-tab-btn"
+									onClick={() => closeTab(tab.id)}
+									className="close-tab"
+								>
 									<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512">
 										<path
 											fill="#cdd6f4"
@@ -1716,7 +1810,7 @@ function App(): JSX.Element {
 							</div>
 						))}
 					</div>
-					<button onClick={addTab} className="newTabBtn">
+					<button aria-label="add-tab-btn" onClick={addTab} className="newTabBtn">
 						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512">
 							<path
 								fill="#cdd6f4"
@@ -1767,7 +1861,12 @@ function App(): JSX.Element {
 
 			<div className="searchBarSection">
 				<div className="pageBtns">
-					<button className="pageBtn" onClick={handleGoBack} disabled={!canGoBack}>
+					<button
+						className="pageBtn"
+						aria-label="go-back-btn"
+						onClick={handleGoBack}
+						disabled={!canGoBack}
+					>
 						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512">
 							<path
 								fill="#cdd6f4"
@@ -1775,7 +1874,13 @@ function App(): JSX.Element {
 							/>
 						</svg>
 					</button>
-					<button className="pageBtn" onClick={handleGoForward} disabled={!canGoForward}>
+
+					<button
+						className="pageBtn"
+						aria-label="go-forward-btn"
+						onClick={handleGoForward}
+						disabled={!canGoForward}
+					>
 						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512">
 							<path
 								fill="#cdd6f4"
@@ -1783,7 +1888,7 @@ function App(): JSX.Element {
 							/>
 						</svg>
 					</button>
-					<button className="pageBtn" onClick={handleReload}>
+					<button className="pageBtn" aria-label="reload-btn" onClick={handleReload}>
 						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512">
 							<path
 								fill="#cdd6f4"
@@ -1807,8 +1912,7 @@ function App(): JSX.Element {
 								id="search-input"
 								type="text"
 								value={searchInput}
-								// onInput={handleSearchChange}
-								onInputCapture={handleSearchChange}
+								onInput={handleSearchChange}
 								aria-placeholder="Search Google or enter address"
 								placeholder="Search Google or enter address"
 								spellCheck="false"
@@ -1841,9 +1945,34 @@ function App(): JSX.Element {
 						<></>
 					)}
 				</div>
+
 				<div className="pageBtns">
 					<button
 						className="pageBtn"
+						aria-label="adblock-btn"
+						id="adBlockerBtn"
+						onClick={handleAdBlocker}
+						ref={downloadsBtnRef}
+					>
+						{adBlockerStatus ? (
+							<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+								<path
+									fill="#cdd6f4"
+									d="M256 0c4.6 0 9.2 1 13.4 2.9L457.7 82.8c22 9.3 38.4 31 38.3 57.2c-.5 99.2-41.3 280.7-213.6 363.2c-16.7 8-36.1 8-52.8 0C57.3 420.7 16.5 239.2 16 140c-.1-26.2 16.3-47.9 38.3-57.2L242.7 2.9C246.8 1 251.4 0 256 0z"
+								/>
+							</svg>
+						) : (
+							<svg viewBox="0 0 481.522 499.3992" xmlns="http://www.w3.org/2000/svg">
+								<path
+									fill="#cdd6f4"
+									d="M 248.156 499.523 C 244.156 499.523 237.909 498.862 233.88 498.077 C 124.259 476.728 -7.008 305.043 6.146 138.068 C 6.876 128.796 5.097 103.67 35.701 86.469 L 236.19 2.759 C 241.233 0.216 250.216 -0.382 253.716 0.518 L 441.573 79.293 C 472.425 85.866 486.541 124.82 486.677 131.489 C 489.868 288.322 392.361 455.31 259.656 496.023 C 255.652 497.251 252.156 499.523 248.156 499.523 Z M 52.232 140.41 C 58.432 275.81 124.056 366.423 248.156 454.323 C 372.256 366.423 428.909 270.427 435.109 135.027 L 248.156 51.023 L 52.232 140.41 Z"
+								/>
+							</svg>
+						)}
+					</button>
+					<button
+						className="pageBtn"
+						aria-label="downloads-btn"
 						id="downloadsBtn"
 						onClick={showDownloads}
 						ref={downloadsBtnRef}
@@ -1857,6 +1986,7 @@ function App(): JSX.Element {
 					</button>
 					<button
 						className="pageBtn"
+						aria-label="settings-btn"
 						id="settingsBtn"
 						onClick={showSettings}
 						ref={settingsBtnRef}
@@ -2064,7 +2194,7 @@ function App(): JSX.Element {
 								<h3>Test</h3>
 								<progress max={100} value={50}></progress>
 							</div>
-							
+
 						</div> */}
 					</div>
 				) : null}
@@ -2087,7 +2217,7 @@ function App(): JSX.Element {
 							overflowWrap: 'break-word',
 							display: webviewValid(tab) ? 'flex' : 'none'
 						}}
-						nodeintegration
+						nodeintegration={true}
 						webpreferences="allowRunningInsecureContent, javascript=yes contextIsolation=true"
 					/>
 				))}
@@ -2318,7 +2448,24 @@ function App(): JSX.Element {
 								}
 							}}
 						/>
-						{findInstanceCount}
+						{webviewRefs.current[activeTab].src !== '' ? (
+							webviewInstanceCount
+						) : (
+							<>
+								{((): string => {
+									switch (searchInput) {
+										case 'cobalt://downloads':
+											return downloadsInstanceCount;
+										case 'cobalt://history':
+											return historyInstanceCount;
+										case 'cobalt://themes':
+											return themesInstanceCount;
+										default:
+											return downloadsInstanceCount;
+									}
+								})()}
+							</>
+						)}
 						<button
 							onClick={() => {
 								setFindBoxVisibility(false);
@@ -2374,7 +2521,13 @@ function App(): JSX.Element {
 						<div className="app">
 							<h1 className="title">
 								<span className="cobalt-span">
-									<img src={cobalt} alt="Cobalt Logo" className="cobalt-logo" />
+									<img
+										src={cobalt}
+										alt="Cobalt Logo"
+										className="cobalt-logo"
+										width={116}
+										height={116}
+									/>
 								</span>
 								Cobalt
 							</h1>
@@ -2382,7 +2535,7 @@ function App(): JSX.Element {
 								className="new-page-search-form"
 								onSubmit={handleHomeSearchSubmit}
 							>
-								<label className="search-bar" htmlFor="">
+								<label className="search-bar">
 									<span className="google-icon">
 										<svg
 											xmlns="http://www.w3.org/2000/svg"
@@ -2405,6 +2558,11 @@ function App(): JSX.Element {
 								</label>
 							</form>
 						</div>
+					</div>
+				)}
+				{adBlockerLoadingStatus && isAdBlockerLoading && (
+					<div style={{ position: 'absolute', top: '0', right: '0', zIndex: '999' }}>
+						{adBlockerLoadingStatus}
 					</div>
 				)}
 			</div>
