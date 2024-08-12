@@ -831,6 +831,7 @@ app.whenReady().then(() => {
 
 	app.on('browser-window-blur', () => {
 		globalShortcut.unregisterAll();
+		globalShortcut.unregisterAll();
 	});
 
 	session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
