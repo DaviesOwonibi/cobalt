@@ -185,7 +185,6 @@ function createWindow(
 	}
 
 	mainWindow.setMenu(null);
-	mainWindow.webContents.openDevTools();
 
 	mainWindow.webContents.session.on('will-download', (_event, item, _webContents) => {
 		const getUniqueFilePath = (basePath, fileName): string => {
