@@ -50,6 +50,14 @@ interface Theme {
   colors: Record<string, string>;
 }
 
+interface ContextMenuParams {
+  linkURL?: string;
+  mediaType?: 'image' | 'video' | 'audio' | 'none';
+  srcURL?: string;
+  isEditable?: boolean;
+  selectionText?: string;
+}
+
 interface Download {
   id: number;
   filename: string;
@@ -458,11 +466,11 @@ function App(): JSX.Element {
     }
   };
 
-  const handleThemeInputChange = (e): void => {
+  const handleThemeInputChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     setNewThemeName(e.target.value);
   };
 
-  const handleNewThemeColorChange = (e): void => {
+  const handleNewThemeColorChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const { name, value } = e.target;
     setNewThemeColor({
       ...newThemeColor,
@@ -470,7 +478,7 @@ function App(): JSX.Element {
     });
   };
 
-  const handleAddTheme = (e): void => {
+  const handleAddTheme = (e: React.FormEvent<HTMLFormElement>): void => {
     e.preventDefault();
     const themeNames: string[] = [];
     themes.forEach((theme) => {
@@ -1407,7 +1415,8 @@ function App(): JSX.Element {
     ipcRenderer.on('go-to-tab-9', () => {
       setActivePage(tabs[tabs.length - 1].id);
     });
-    const handleContextMenuCommand = (_event: unknown, command: string, data): void => {
+
+    const handleContextMenuCommand = (_event: unknown, command: string, data: ContextMenuParams): void => {
       switch (command) {
         case 'back':
           handleGoBack();
@@ -1422,17 +1431,21 @@ function App(): JSX.Element {
           handleInspect();
           break;
         case 'open-link-new-tab':
-          openLinkInNewTab(data);
+          if (!data.linkURL) { break }
+          openLinkInNewTab(data.linkURL);
           break;
         case 'copy-link':
         case 'copy':
-          clipboard.writeText(data, 'selection');
+          if (!data.selectionText) { break }
+          clipboard.writeText(data.selectionText, 'selection');
           break;
         case 'save-image':
-          handleDownload(data);
+          if (!data.srcURL) { break }
+          handleDownload(data.srcURL);
           break;
         case 'search':
-          openLinkInNewTab(`https://www.google.com/search?q=${encodeURIComponent(data)}`);
+          if (!data.linkURL) { break }
+          openLinkInNewTab(`https://www.google.com/search?q=${encodeURIComponent(data.linkURL)}`);
           break;
       }
     };
@@ -1530,24 +1543,6 @@ function App(): JSX.Element {
             setSearchInput(url);
           }
         };
-
-        // 				webview.addEventListener('dom-ready', () => {
-        // 					// Execute JavaScript in the webview context to get the text content
-        // 					webview
-        // 						.executeJavaScript(
-        // 							`
-        //     // Get all the text content from the page
-        //     document.body.innerText;
-        //   `
-        // 						)
-        // 						.then((textContent) => {
-        // 							setWebviewTextContent(textContent);
-        // 						})
-        // 						.catch((error) => {
-        // 							console.error('Failed to get text content:', error);
-        // 						});
-        // 				});
-
         webview.addEventListener('did-finish-load', updateTabInfo);
         webview.addEventListener('did-start-navigation', handleAboutToNavigate);
         webview.addEventListener('page-title-updated', updateTabInfo);
@@ -1704,7 +1699,7 @@ function App(): JSX.Element {
     };
   }, [showThemeForm, settingsVisibility, showRecommendations, downloadsVisibility, activeTab]);
 
-  const handleInputMouseDown = (e): void => {
+  const handleInputMouseDown = (e: React.MouseEvent<HTMLInputElement>): void => {
     if (!isFocused) {
       e.preventDefault();
       setShouldSelect(true);
