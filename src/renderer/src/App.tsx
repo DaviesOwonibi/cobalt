@@ -8,29 +8,7 @@ import { WebviewTag, clipboard } from 'electron';
 import Webview from './components/Webview';
 import Notification from './assets/Notifications/notifications.js';
 import cobalt from './assets/icons/icon.png';
-import css from './assets/icons/downloadIcons/css.png';
-import dll from './assets/icons/downloadIcons/dll.png';
-import dmg from './assets/icons/downloadIcons/dmg.png';
-import doc from './assets/icons/downloadIcons/doc.png';
-import exe from './assets/icons/downloadIcons/exe.png';
-import file from './assets/icons/downloadIcons/file.png';
-import gif from './assets/icons/downloadIcons/gif.png';
-import html from './assets/icons/downloadIcons/html.png';
-import iso from './assets/icons/downloadIcons/iso.png';
-import jpg from './assets/icons/downloadIcons/jpg.png';
-import js from './assets/icons/downloadIcons/js.png';
-import json from './assets/icons/downloadIcons/json.png';
-import mp3 from './assets/icons/downloadIcons/mp3.png';
-import mp4 from './assets/icons/downloadIcons/mp4.png';
-import mpg from './assets/icons/downloadIcons/mpg.png';
-import msi from './assets/icons/downloadIcons/msi.png';
-import pdf from './assets/icons/downloadIcons/pdf.png';
-import png from './assets/icons/downloadIcons/png.png';
-import ppt from './assets/icons/downloadIcons/ppt.png';
-import sql from './assets/icons/downloadIcons/sql.png';
-import svg from './assets/icons/downloadIcons/svg.png';
-import txt from './assets/icons/downloadIcons/txt.png';
-import zip from './assets/icons/downloadIcons/zip.png';
+
 
 enum InstanceCountType {
   WEBVIEW,
@@ -1045,56 +1023,83 @@ function App(): JSX.Element {
   function getImagePath(fileExtension: string): string {
     switch (fileExtension) {
       case 'css':
+        let css = require('./assets/icons/downloadIcons/css.png')
         return css;
       case 'dll':
+        let dll = require('./assets/icons/downloadIcons/css.png')
         return dll;
       case 'dmg':
+        let dmg = require('./assets/icons/downloadIcons/dmg.png');
         return dmg;
       case 'doc':
+        let doc = require('./assets/icons/downloadIcons/doc.png');
         return doc;
       case 'docx':
-        return doc;
+        let docx = require('./assets/icons/downloadIcons/doc.png')
+        return docx;
       case 'exe':
+        let exe = require('./assets/icons/downloadIcons/exe.png');
         return exe;
       case 'gif':
+        let gif = require('./assets/icons/downloadIcons/gif.png')
         return gif;
       case 'html':
+        let html = require('./assets/icons/downloadIcons/html.png');
         return html;
       case 'iso':
+        let iso = require('./assets/icons/downloadIcons/iso.png');
         return iso;
       case 'jpg':
+        let jpg = require('./assets/icons/downloadIcons/jpg.png');
         return jpg;
       case 'jpeg':
-        return jpg;
+        let jpeg = require('./assets/icons/downloadIcons/jpg.png')
+        return jpeg;
       case 'js':
+        let js = require('./assets/icons/downloadIcons/js.png');
         return js;
       case 'json':
+        let json = require('./assets/icons/downloadIcons/json.png');
         return json;
       case 'mp3':
+        let mp3 = require('./assets/icons/downloadIcons/mp3.png');
         return mp3;
       case 'mp4':
+        let mp4 = require('./assets/icons/downloadIcons/mp4.png');
         return mp4;
       case 'mpg':
+        let mpg = require('./assets/icons/downloadIcons/mpg.png');
         return mpg;
       case 'msi':
+        let msi = require('./assets/icons/downloadIcons/msi.png');
         return msi;
       case 'pdf':
+        let pdf = require('./assets/icons/downloadIcons/pdf.png');
         return pdf;
       case 'png':
+        let png = require('./assets/icons/downloadIcons/png.png');
         return png;
       case 'ppt':
+        let ppt = require('./assets/icons/downloadIcons/ppt.png');
         return ppt;
       case 'pptx':
-        return ppt;
+        let pptx = require('./assets/icons/downloadIcons/ppt.png');
+        return pptx;
       case 'sql':
+        let sql = require('./assets/icons/downloadIcons/sql.png');
         return sql;
       case 'svg':
+        let svg = require('./assets/icons/downloadIcons/svg.png');
         return svg;
       case 'txt':
+        let txt = require('./assets/icons/downloadIcons/txt.png');
         return txt;
       case 'zip':
+        let zip = require('./assets/icons/downloadIcons/zip.png');
         return zip;
       default:
+        let file = require('./assets/icons/downloadIcons/file.png');
+
         return file;
     }
   }
