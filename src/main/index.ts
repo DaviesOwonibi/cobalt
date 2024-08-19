@@ -187,7 +187,7 @@ function createWindow(
 	mainWindow.setMenu(null);
 
 	mainWindow.webContents.session.on('will-download', (_event, item, _webContents) => {
-		const getUniqueFilePath = (basePath, fileName): string => {
+		const getUniqueFilePath = (basePath: string, fileName: string): string => {
 			let newPath = join(basePath, fileName);
 			let counter = 1;
 			const ext = extname(fileName);

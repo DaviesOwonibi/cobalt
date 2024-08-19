@@ -34,6 +34,7 @@
 	},
 	"build": {
 		"appId": "Cobalt",
+		"productName": "Cobalt",
 		"win": {
 			"target": [
 				"nsis"
