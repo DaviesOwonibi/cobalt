@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import {
 	app,
 	shell,
@@ -186,7 +185,7 @@ function createWindow(
 
 	mainWindow.setMenu(null);
 
-	mainWindow.webContents.session.on('will-download', (_event, item, _webContents) => {
+	mainWindow.webContents.session.on('will-download', (_event, item) => {
 		const getUniqueFilePath = (basePath: string, fileName: string): string => {
 			let newPath = join(basePath, fileName);
 			let counter = 1;
