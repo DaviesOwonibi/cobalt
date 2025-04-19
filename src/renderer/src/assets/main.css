@@ -161,10 +161,19 @@ progress[value]::-webkit-progress-value {
 .newTabBtn {
 	z-index: 999;
 	margin-top: 5px;
-	width: 25px;
+	margin-left: 5px;
+	width: 30px;
+	height: 30px;
 	background-color: transparent;
 	text-align: center;
+	vertical-align: middle;
+	border-radius: 5px;
 	-webkit-app-region: no-drag;
+	transition:
+		all ease-in-out 0.2s,
+		scale ease-in 0.2s;
+
+	padding: 0;
 }
 
 .newTabBtn svg {
@@ -172,8 +181,8 @@ progress[value]::-webkit-progress-value {
 }
 
 .newTabBtn:hover {
-	transition: ease-in-out 0.2s;
-	scale: 1.1;
+	scale: 1.15;
+	background-color: rgba(255, 255, 255, 0.2);
 	svg > path {
 		fill: var(--accentColor);
 	}

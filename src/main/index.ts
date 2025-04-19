@@ -406,11 +406,11 @@ function createWindow(
 
 			// Enable or disable based on args
 			if (args.status === true) {
-				mainWindow.webContents.send('ADBLOCKER_LOADING_STATUS', 'Enabling adblocker...');
-				instance.enable();
-			} else {
 				mainWindow.webContents.send('ADBLOCKER_LOADING_STATUS', 'Disabling adblocker...');
 				instance.disable();
+			} else {
+				mainWindow.webContents.send('ADBLOCKER_LOADING_STATUS', 'Enabling adblocker...');
+				instance.enable();
 			}
 
 			// Send completion message
